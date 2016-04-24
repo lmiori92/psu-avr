@@ -1,16 +1,37 @@
-// adc_to_pwm.pde
-// ADC to PWM converter
-// guest - openmusiclabs.com - 1.9.13
-// options table at http://wiki.openmusiclabs.com/wiki/PWMDAC
-// takes in audio data from the ADC and plays it out on
-// Timer1 PWM.  16b, Phase Correct, 31.25kHz - although ADC is 10b.
+/*
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+    Lorenzo Miori (C) 2015 [ 3M4|L: memoryS60<at>gmail.com ]
+
+    Version History
+        * 1.0 initial
+
+*/
+
+/**
+ * @file pwm.c
+ * @author Lorenzo Miori
+ * @date Apr 2016
+ * @brief PWM subsystem: initialization and routines to set the duty cycle
+ */
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
 #include "pwm.h"
 
-#define PWM_FREQ 0x03FF // pwm frequency - see table
+#define PWM_FREQ 0x03FF // determines pwm frequency
 #define PWM_MODE 0 // Fast (1) or Phase Correct (0)
 #define PWM_QTY 2 // number of pwms, either 1 or 2
 
@@ -23,6 +44,7 @@ void pwm_init(void)
 
     for (i = 0; i < (uint8_t)PWM_CHANNEL_NUM; i++)
     {
+        /* Reset values, just in case */
         pwm_channels[i].duty = 0;
         pwm_channels[i].resolution = 0;
         pwm_channels[i].channel = i;
@@ -30,9 +52,8 @@ void pwm_init(void)
 
     /* PWM_0 and PWM_1: 10 bit resolution */
 
-    TCCR1A = (((PWM_QTY - 1) << 5) | 0x80 | (PWM_MODE << 1)); //
-    TCCR1B = ((PWM_MODE << 3) | 0x11); // ck/1
-//    TIMSK1 = 0x20; // interrupt on capture interrupt
+    TCCR1A = (((PWM_QTY - 1) << 5) | 0x80 | (PWM_MODE << 1));
+    TCCR1B = ((PWM_MODE << 3) | (1 << WGM13) | (1 << CS10));
     ICR1H = (PWM_FREQ >> 8);
     ICR1L = (PWM_FREQ & 0xff);
 
@@ -46,13 +67,6 @@ void pwm_init(void)
     /* set up timer with prescaler */
     TCCR2B = (0 << WGM22) | (1 << CS20);
 
-    /* initialize counter */
-    //OCR2A = 200;
-    //OCR2B = 20;
-
-    /* enable output compare match interrupt */
-//    TIMSK0 |= (1 << OCIE0A);
-
     /* Set output pins */
     DDRB |= (1 << PIN1) | (1 << PIN2) | (1 << PIN3);
     DDRD |= (1 << PIN3);
@@ -60,15 +74,9 @@ void pwm_init(void)
     pwm_channels[PWM_CHANNEL_2].resolution = 0xFF;
     pwm_channels[PWM_CHANNEL_3].resolution = 0xFF;
 
-    //OCR1AH = 0;
-    //OCR1AL = 0x7F;
-
-    //OCR1BH = 0x01;
-    //OCR1BL = 0x34;
-
 }
 
-void pwm_set(e_pwm_channel pwm_channel, uint16_t duty)
+void pwm_set_duty(e_pwm_channel pwm_channel, uint16_t duty)
 {
 
     pwm_channels[pwm_channel].duty = duty;
@@ -98,35 +106,3 @@ uint16_t pwm_get_resolution(e_pwm_channel channel)
 {
     return pwm_channels[channel].resolution;
 }
-
-  //unsigned int temp1 = 0xFF;//ADCL; // you need to fetch the low byte first
-  //uint16_t temp2 = 0x7F;//ADCH;
-  //unsigned int a= 0;
-
-//ISR(TIMER1_CAPT_vect) {
-
-  // get ADC data
-
-  // although ADCH and ADCL are 8b numbers, they are represented
-  // here by unsigned ints, just to demonstrate how you would
-  // use numbers larger than 8b.  also, be sure you use unsigned
-  // ints for this operation.  if you have a signed int (a regular
-  // int), add 0x8000 and cast it to an unsigned int before sending
-  // it out to OCR1AH or OCR1AL.
-  // example:
-  // int temp3 = 87;
-  // unsigned int temp4 = temp3 + 0x8000;
-  // OCR1AH = temp4 >> 8;
-  // OCR1AL = temp4;
-
-  // output high byte on OC1A
-//  OCR1AH = temp2 >> 8; // takes top 8 bits
-//  OCR1AL = temp2; // takes bottom 8 bits
-
-  // output low byte on OC1B
-  //OCR1BH = temp1 >> 8;
-  //OCR1BL = temp1;
-
-
-//}
-

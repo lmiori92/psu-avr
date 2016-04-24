@@ -71,18 +71,21 @@ void timer_init(void)
 
 }
 
+#ifdef TIMER_DEBUG
+#include "stdio.h"
 void timer_debug(void)
 {
-#ifdef TIMER_DEBUG
     static uint32_t ts = 0;
     if (g_timestamp > (ts + 1000000L))
     {
         ts = g_timestamp;
-        printf("1 second trigger\r\n");
+        printf("%s\r\n", "1 second trigger");
     }
-#endif
-}
 
+}
+#else
+void timer_debug(void) {};
+#endif
 /**
  * ISR(TIMER0_OVF_vect)
  *

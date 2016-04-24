@@ -148,7 +148,7 @@ static void init_channel(t_psu_channel *channel, e_psu_channel psu_ch)
     channel->voltage_readout.scale.min = 0;
     channel->voltage_readout.scale.max = 1023;  /* ADC steps */
     channel->voltage_readout.scale.min_scaled = 0;
-    channel->voltage_readout.scale.max_scaled = 4980;//25575;  /* Voltage */
+    channel->voltage_readout.scale.max_scaled = 5000;//25575;  /* Voltage */
 
     channel->current_readout.scale.min = 0;
     channel->current_readout.scale.max = 1023;  /* ADC steps */
@@ -156,12 +156,12 @@ static void init_channel(t_psu_channel *channel, e_psu_channel psu_ch)
     channel->current_readout.scale.max_scaled = 2048;  /* Voltage */
 
     channel->voltage_setpoint.scale.min = channel->voltage_readout.scale.min_scaled;
-    channel->voltage_setpoint.scale.max = 4980;
+    channel->voltage_setpoint.scale.max = 28500;
     channel->voltage_setpoint.scale.min_scaled = 0;
     channel->voltage_setpoint.scale.max_scaled = pwm_get_resolution(channel->voltage_pwm_channel);
 
     channel->current_setpoint.scale.min = 0;
-    channel->current_setpoint.scale.max = 4980;
+    channel->current_setpoint.scale.max = 28500;
     channel->current_setpoint.scale.min_scaled = 0;
     channel->current_setpoint.scale.max_scaled = pwm_get_resolution(channel->current_pwm_channel);
 
@@ -220,11 +220,11 @@ static void pwm_processing(t_psu_channel *channel)
 
     /* Voltage */
     lib_scale(&channel->voltage_setpoint.value, &channel->voltage_setpoint.scale);
-    pwm_set(channel->voltage_pwm_channel, channel->voltage_setpoint.value.scaled);
+    pwm_set_duty(channel->voltage_pwm_channel, channel->voltage_setpoint.value.scaled);
 
     /* Current */
     lib_scale(&channel->current_setpoint.value, &channel->current_setpoint.scale);
-    pwm_set(channel->current_pwm_channel, channel->current_setpoint.value.scaled);
+    pwm_set_duty(channel->current_pwm_channel, channel->current_setpoint.value.scaled);
 
 }
 
@@ -285,11 +285,15 @@ int main(void)
         /* Periodic functions */
         //adc_periodic();
         input_processing();
-//printf("%d (%d)\r\n", channels[PSU_CHANNEL_0].voltage_readout.value.scaled, channels[PSU_CHANNEL_0].voltage_readout.value.raw);
-//_delay_ms(500);
+        //printf("%d (%d)\r\n", channels[PSU_CHANNEL_0].voltage_readout.value.scaled, channels[PSU_CHANNEL_0].voltage_readout.value.raw);
+        //_delay_ms(500);
         /** DEBUG PERIODIC FUNCS **/
-        psu_channels[0].voltage_setpoint.value.raw = 1785;
-        psu_channels[0].current_setpoint.value.raw = 2047;
+        psu_channels[0].voltage_setpoint.value.raw= 11937; // observed an offset error of about 50mV
+        // note that the prototype breadboard does not have a separatly filtered and regulated 5V supply
+        psu_channels[0].current_setpoint.value.raw = 2047; // observed an offset error of about 40mV
+
+        // to-do / to analyze: 1) absolute offset calibration
+        //                     2) non linear behaviour correction (do measurements)
 
         /* Debug the timer */
         timer_debug();
