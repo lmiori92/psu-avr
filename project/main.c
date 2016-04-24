@@ -23,6 +23,7 @@
 #include <avr/interrupt.h>
 #include <avr/delay.h>
 #include "adc.h"
+#include "pwm.h"
 #include "time.h"
 #include "uart.h"
 #include "system.h"
@@ -70,12 +71,14 @@ typedef struct _t_channel
 {
     t_voltage voltage_setpoint;
     t_voltage voltage_readout;
-    e_adc_channel voltage_channel;
+    e_adc_channel voltage_adc_channel;
+    e_pwm_channel voltage_pwm_channel;
 
     t_current current_setpoint;
     t_current current_readout;
-    e_adc_channel current_channel;
-} t_channel;
+    e_adc_channel current_adc_channel;
+    e_pwm_channel current_pwm_channel;
+} t_psu_channel;
 
 
 /* LOW */
@@ -95,7 +98,7 @@ typedef enum _e_psu_channels
 } e_psu_channel;
 
 /* GLOBALS */
-static t_channel channels[PSU_CHANNEL_NUM];
+static t_psu_channel psu_channels[PSU_CHANNEL_NUM];
 
 void lib_limit(t_value *value, t_value_scale *scale)
 {
@@ -120,37 +123,51 @@ void lib_scale(t_value *value, t_value_scale *scale)
     value->scaled = (t_value_type)temp;
 }
 
-static void init_channel(t_channel *channel, e_psu_channel psu_ch)
+static void init_channel(t_psu_channel *channel, e_psu_channel psu_ch)
 {
-
-    channel->voltage_readout.scale.min = 0;
-    channel->voltage_readout.scale.max = 1023;  /* ADC steps */
-    channel->voltage_readout.scale.min_scaled = 0;
-    channel->voltage_readout.scale.max_scaled = 5000;//25575;  /* Voltage */
-
-    channel->current_readout.scale.min = 0;
-    channel->current_readout.scale.max = 1023;  /* ADC steps */
-    channel->current_readout.scale.min_scaled = 0;
-    channel->current_readout.scale.max_scaled = 2048;  /* Voltage */
 
     switch(psu_ch)
     {
         case PSU_CHANNEL_0:
-            channel->voltage_channel = ADC_0;
-            channel->current_channel = ADC_1;
+            channel->voltage_adc_channel = ADC_0;
+            channel->current_adc_channel = ADC_1;
+            channel->voltage_pwm_channel = PWM_CHANNEL_0;
+            channel->current_pwm_channel = PWM_CHANNEL_2;
             break;
         case PSU_CHANNEL_1:
-            channel->voltage_channel = ADC_2;
-            channel->current_channel = ADC_3;
+            channel->voltage_adc_channel = ADC_2;
+            channel->current_adc_channel = ADC_3;
+            channel->voltage_pwm_channel = PWM_CHANNEL_1;
+            channel->current_pwm_channel = PWM_CHANNEL_3;
             break;
         default:
             /* No channel selected */
             break;
     }
 
+    channel->voltage_readout.scale.min = 0;
+    channel->voltage_readout.scale.max = 1023;  /* ADC steps */
+    channel->voltage_readout.scale.min_scaled = 0;
+    channel->voltage_readout.scale.max_scaled = 4980;//25575;  /* Voltage */
+
+    channel->current_readout.scale.min = 0;
+    channel->current_readout.scale.max = 1023;  /* ADC steps */
+    channel->current_readout.scale.min_scaled = 0;
+    channel->current_readout.scale.max_scaled = 2048;  /* Voltage */
+
+    channel->voltage_setpoint.scale.min = channel->voltage_readout.scale.min_scaled;
+    channel->voltage_setpoint.scale.max = 4980;
+    channel->voltage_setpoint.scale.min_scaled = 0;
+    channel->voltage_setpoint.scale.max_scaled = pwm_get_resolution(channel->voltage_pwm_channel);
+
+    channel->current_setpoint.scale.min = 0;
+    channel->current_setpoint.scale.max = 4980;
+    channel->current_setpoint.scale.min_scaled = 0;
+    channel->current_setpoint.scale.max_scaled = pwm_get_resolution(channel->current_pwm_channel);
+
 }
 
-static void init_psu(t_channel *channel)
+static void init_psu(t_psu_channel *channel)
 {
 
     uint8_t i;
@@ -175,6 +192,9 @@ static void init_io(void)
     /* ADC */
     adc_init();
 
+    /* PWM */
+    pwm_init();
+
     /* System timer */
     timer_init();
 
@@ -182,16 +202,29 @@ static void init_io(void)
 
 }
 
-static void adc_processing(t_channel *channel)
+static void adc_processing(t_psu_channel *channel)
 {
 
     /* Voltage */
-    channel->voltage_readout.value.raw = adc_get(channel->voltage_channel);
+    channel->voltage_readout.value.raw = adc_get(channel->voltage_adc_channel);
     lib_scale(&channel->voltage_readout.value, &channel->voltage_readout.scale);
 
     /* Current */
-    channel->current_readout.value.raw = adc_get(channel->current_channel);
+    channel->current_readout.value.raw = adc_get(channel->current_adc_channel);
     lib_scale(&channel->current_readout.value, &channel->current_readout.scale);
+
+}
+
+static void pwm_processing(t_psu_channel *channel)
+{
+
+    /* Voltage */
+    lib_scale(&channel->voltage_setpoint.value, &channel->voltage_setpoint.scale);
+    pwm_set(channel->voltage_pwm_channel, channel->voltage_setpoint.value.scaled);
+
+    /* Current */
+    lib_scale(&channel->current_setpoint.value, &channel->current_setpoint.scale);
+    pwm_set(channel->current_pwm_channel, channel->current_setpoint.value.scaled);
 
 }
 
@@ -202,7 +235,18 @@ static void input_processing(void)
 
     for (i = 0; i < (uint8_t)PSU_CHANNEL_NUM; i++)
     {
-        adc_processing(&channels[i]);
+        adc_processing(&psu_channels[i]);
+    }
+
+}
+
+static void output_processing(void)
+{
+    uint8_t i;
+
+    for (i = 0; i < (uint8_t)PSU_CHANNEL_NUM; i++)
+    {
+        pwm_processing(&psu_channels[i]);
     }
 
 }
@@ -217,7 +261,7 @@ int main(void)
     init_io();
 
     /* Init ranges and precisions */
-    init_psu(channels);
+    init_psu(psu_channels);
 
 /*
     channels[0].voltage_readout.value.raw = 250;
@@ -244,9 +288,15 @@ int main(void)
 //printf("%d (%d)\r\n", channels[PSU_CHANNEL_0].voltage_readout.value.scaled, channels[PSU_CHANNEL_0].voltage_readout.value.raw);
 //_delay_ms(500);
         /** DEBUG PERIODIC FUNCS **/
+        psu_channels[0].voltage_setpoint.value.raw = 1785;
+        psu_channels[0].current_setpoint.value.raw = 2047;
 
         /* Debug the timer */
         timer_debug();
+
+        /* Output processing */
+        output_processing();
+
     }
 
 }

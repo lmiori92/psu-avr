@@ -33,7 +33,7 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
-/* #define TIMER_DEBUG */
+#define TIMER_DEBUG
 
 #define TIMER_0_PRESCALER_8     (1 << CS01)                     /**< Prescaler 8 */
 #define TIMER_0_PRESCALER_64    ((1 << CS01) | (1 << CS00))     /**< Prescaler 64 */
@@ -91,6 +91,5 @@ void timer_debug(void)
 ISR(TIMER0_COMPA_vect)
 {
     g_timestamp += 100;   	/* 100us */
-    //TCNT0 = 0;
 }
 
