@@ -11,18 +11,18 @@ DATAGRAM
 #BYTE-0##BYTE-1##BYTE-2##BYTE-3##BYTE-4##BYTE-5##BYTE-6##BYTE-7#
 ################################################################
 
-BYTE-0: LSB CRC16
-BYTE-1: MSB CRC16
+BYTE-8: SYNC (0xDE)
+BYTE-9: SYNC (0xAD)
+BYTE-10: SYNC (0xBE)
+BYTE-11: SYNC (0xEF)
 BYTE-2: LSB ADC-0
 BYTE-3: MSB ADC-0 (6 spare bits for general usage)
 BYTE-4: LSB ADC-1
 BYTE-5: MSB ADC-1 (6 spare bits for general usage)
 BYTE-6: LSB ADC-2
 BYTE-7: MSB ADC-2 (6 spare bits for general usage)
-BYTE-8: SYNC (0xDE)
-BYTE-9: SYNC (0xAD)
-BYTE-10: SYNC (0xBE)
-BYTE-11: SYNC (0xEF)
+BYTE-0: LSB CRC16
+BYTE-1: MSB CRC16
 <1ms wait time>
 
 The CRC-16 is computed by using lib-avr-gcc utilities over the bytes from BYTE-2 to BYTE-7 (inclusive).

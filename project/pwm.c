@@ -32,7 +32,7 @@
 #include "pwm.h"
 
 #define PWM_FREQ 0x03FF // determines pwm frequency
-#define PWM_MODE 0 // Fast (1) or Phase Correct (0)
+#define PWM_MODE 1 // Fast (1) or Phase Correct (0)
 #define PWM_QTY 2 // number of pwms, either 1 or 2
 
 static t_pwm_channel pwm_channels[PWM_CHANNEL_NUM];
@@ -57,8 +57,8 @@ void pwm_init(void)
     ICR1H = (PWM_FREQ >> 8);
     ICR1L = (PWM_FREQ & 0xff);
 
-    pwm_channels[PWM_CHANNEL_0].resolution = 0x3FF;
-    pwm_channels[PWM_CHANNEL_1].resolution = 0x3FF;
+    pwm_channels[PWM_CHANNEL_0].resolution = PWM_FREQ;
+    pwm_channels[PWM_CHANNEL_1].resolution = PWM_FREQ;
 
     /* PWM_2 and PWM_3: 8-bit resolution */
 

@@ -148,7 +148,7 @@ static void init_channel(t_psu_channel *channel, e_psu_channel psu_ch)
     channel->voltage_readout.scale.min = 0;
     channel->voltage_readout.scale.max = 1023;  /* ADC steps */
     channel->voltage_readout.scale.min_scaled = 0;
-    channel->voltage_readout.scale.max_scaled = 5000;//25575;  /* Voltage */
+    channel->voltage_readout.scale.max_scaled = 28500;//25575;  /* Voltage */
 
     channel->current_readout.scale.min = 0;
     channel->current_readout.scale.max = 1023;  /* ADC steps */
@@ -285,12 +285,13 @@ int main(void)
         /* Periodic functions */
         //adc_periodic();
         input_processing();
-        //printf("%d (%d)\r\n", channels[PSU_CHANNEL_0].voltage_readout.value.scaled, channels[PSU_CHANNEL_0].voltage_readout.value.raw);
-        //_delay_ms(500);
+        printf("%d (%d)\r\n", psu_channels[PSU_CHANNEL_0].voltage_readout.value.scaled, psu_channels[PSU_CHANNEL_0].voltage_readout.value.raw);
+        _delay_ms(500);
         /** DEBUG PERIODIC FUNCS **/
-        psu_channels[0].voltage_setpoint.value.raw= 11937; // observed an offset error of about 50mV
+        psu_channels[0].voltage_setpoint.value.raw = 19856; // observed an offset error of about 50mV
+      //  if (psu_channels[0].voltage_setpoint.value.raw > 7500) psu_channels[0].voltage_setpoint.value.raw = 0;
         // note that the prototype breadboard does not have a separatly filtered and regulated 5V supply
-        psu_channels[0].current_setpoint.value.raw = 2047; // observed an offset error of about 40mV
+        psu_channels[0].current_setpoint.value.raw = 1500;// = 2047; // observed an offset error of about 40mV
 
         // to-do / to analyze: 1) absolute offset calibration
         //                     2) non linear behaviour correction (do measurements)
