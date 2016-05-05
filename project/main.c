@@ -23,6 +23,7 @@
 #include <avr/interrupt.h>
 #include <avr/delay.h>
 #include "adc.h"
+#include "encoder.h"
 #include "pwm.h"
 #include "time.h"
 #include "uart.h"
@@ -179,6 +180,43 @@ static void init_psu(t_psu_channel *channel)
 
 }
 
+static const uint16_t smoothing_deltat[] =
+{
+    65051, 54845, 47930, 42693, 38477, 34948, 31913, 29251, 26880, 24742, 22796,
+    21010, 19360, 17827, 16395, 15051, 13786, 12590, 11457, 10380, 9354,
+    8374, 7437, 6538, 5675, 4845, 4046, 3275, 2530, 1810, 1113
+};
+
+#define SMOOTHING_SIZE      (sizeof(smoothing_deltat) / sizeof(smoothing_deltat[0]))
+
+static const uint16_t smoothing_result[SMOOTHING_SIZE] =
+{
+    1, 1, 1, 20, 55, 90, 125, 160, 195, 230, 265, 300, 335, 370, 405, 440, 475,
+    510, 545, 580, 615, 650, 685, 720, 755, 790, 825, 860, 895, 930, 965, 1000
+};
+
+static void encoder_event_callback(e_enc_event event, uint32_t delta_t)
+{
+    uint8_t i;
+    uint16_t diff;
+    for (i = 0; i < SMOOTHING_SIZE; i++)
+    {
+        if (delta_t >= smoothing_deltat[i])
+        {
+            diff = smoothing_result[i];
+            if (event == ENC_EVT_LEFT)
+            {
+                psu_channels[PSU_CHANNEL_0].voltage_setpoint.value.raw -= diff;
+            }
+            else if (event == ENC_EVT_RIGHT)
+            {
+                psu_channels[PSU_CHANNEL_0].voltage_setpoint.value.raw += diff;
+            }
+            break;
+        }
+    }
+}
+
 static void init_io(void)
 {
 
@@ -197,6 +235,10 @@ static void init_io(void)
 
     /* System timer */
     timer_init();
+
+    /* Encoder */
+    encoder_init();
+    encoder_set_callback(ENC_HW_0, encoder_event_callback);
 
     sei();
 
@@ -238,6 +280,11 @@ static void input_processing(void)
         adc_processing(&psu_channels[i]);
     }
 
+    // just testing
+//    uint32_t delta_t;
+//    int8_t val;
+//    val = encoder_get(ENC_HW_0, &delta_t);
+
 }
 
 static void output_processing(void)
@@ -277,28 +324,29 @@ int main(void)
     printf("Raw is %d and scaled is %d\r\n", channels[0].voltage_readout.value.raw, channels[0].voltage_readout.value.scaled);
 */
 
-    printf("Starting the main loop\r\n");
+    printf("Debugging enabled\r\n");
+    DBG_CONFIG;
 
     while (1)
     {
-        //DBG_LOW;
         /* Periodic functions */
-        //adc_periodic();
         input_processing();
-        printf("%d (%d)\r\n", psu_channels[PSU_CHANNEL_0].voltage_readout.value.scaled, psu_channels[PSU_CHANNEL_0].voltage_readout.value.raw);
-        _delay_ms(500);
-        /** DEBUG PERIODIC FUNCS **/
-        psu_channels[0].voltage_setpoint.value.raw = 19856; // observed an offset error of about 50mV
-      //  if (psu_channels[0].voltage_setpoint.value.raw > 7500) psu_channels[0].voltage_setpoint.value.raw = 0;
-        // note that the prototype breadboard does not have a separatly filtered and regulated 5V supply
-        psu_channels[0].current_setpoint.value.raw = 1500;// = 2047; // observed an offset error of about 40mV
 
+        /*
+        psu_channels[0].voltage_setpoint.value.raw = 19856;
+        observed an offset error of about 50mV
+        note that the prototype breadboard does not have a separatly filtered and regulated 5V supply
+        psu_channels[0].current_setpoint.value.raw = 1500;// = 2047; // observed an offset error of about 40mV
+*/
         // to-do / to analyze: 1) absolute offset calibration
         //                     2) non linear behaviour correction (do measurements)
 
+        /* Encoder periodic logic */
+        //printf("\x1B[2J\x1B[HEncoder value %u\r\n", (uint32_t)psu_channels[0].voltage_setpoint.value.raw);
+#ifdef TIMER_DEBUG
         /* Debug the timer */
         timer_debug();
-
+#endif
         /* Output processing */
         output_processing();
 

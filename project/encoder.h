@@ -20,22 +20,51 @@
 */
 
 /**
- * @file time.h
+ * @file encoder.h
  * @author Lorenzo Miori
- * @date Oct 2015
- * @brief Time keeping routines
+ * @date May 2016
+ * @brief Encoder subsystem: initialization and routines to handle them
  */
 
-#ifndef SRC_TIME_H_
-#define SRC_TIME_H_
+#ifndef ENCODER_H_
+#define ENCODER_H_
 
-/*#define TIMER_DEBUG*/
+#include <stdbool.h>
+#include <stdint.h>
 
-extern uint32_t g_timestamp;    /**< Time-keeping in us. Resolution is 100us TICK */
+typedef enum
+{
+    ENC_HW_0,
+    ENC_HW_NUM
+} e_enc_hw;
 
-void timer_init(void);
-#ifdef TIMER_DEBUG
-void timer_debug(void);
-#endif
+typedef enum
+{
+    ENC_EVT_RIGHT,
+    ENC_EVT_LEFT,
+    ENC_EVT_CLICK,
+    ENC_EVT_NUM
+} e_enc_event;
 
-#endif /* SRC_TIME_H_ */
+/** Event callback function */
+typedef void (*t_enc_cb)(e_enc_event event, uint32_t delta_t);
+
+typedef struct
+{
+
+    uint8_t  pin_A;
+    uint8_t  pin_B;
+    uint8_t  pin_raw;
+    int8_t   raw;
+    int8_t   value;
+    uint32_t tick;
+    uint32_t delta_t;
+    t_enc_cb evt_cb;
+
+} t_encoder;
+
+/* Functions */
+void encoder_init(void);
+void encoder_set_callback(e_enc_hw index, t_enc_cb event_cb);
+
+#endif /* ENCODER_H_ */

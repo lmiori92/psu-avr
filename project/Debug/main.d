@@ -1,6 +1,9 @@
-main.o: ../main.c ../adc.h ../pwm.h ../time.h ../uart.h ../system.h
+main.o: ../main.c ../adc.h ../encoder.h ../pwm.h ../time.h ../uart.h \
+ ../system.h
 
 ../adc.h:
+
+../encoder.h:
 
 ../pwm.h:
 

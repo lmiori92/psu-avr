@@ -5,6 +5,7 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
 ../adc.c \
+../encoder.c \
 ../main.c \
 ../pwm.c \
 ../system.c \
@@ -13,6 +14,7 @@ C_SRCS += \
 
 OBJS += \
 ./adc.o \
+./encoder.o \
 ./main.o \
 ./pwm.o \
 ./system.o \
@@ -21,6 +23,7 @@ OBJS += \
 
 C_DEPS += \
 ./adc.d \
+./encoder.d \
 ./main.d \
 ./pwm.d \
 ./system.d \

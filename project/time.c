@@ -33,8 +33,6 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
-#define TIMER_DEBUG
-
 #define TIMER_0_PRESCALER_8     (1 << CS01)                     /**< Prescaler 8 */
 #define TIMER_0_PRESCALER_64    ((1 << CS01) | (1 << CS00))     /**< Prescaler 64 */
 #define TIMER_0_PRESCALER_256   (1 << CS02)                     /**< Prescaler 256 */
@@ -46,7 +44,7 @@
  *
  * */
 
-volatile uint32_t g_timestamp;           /**< Global time-keeping variable (resolution: 100us) */
+uint32_t g_timestamp;           /**< Global time-keeping variable (resolution: 100us) */
 
 /**
  * timer_init
@@ -84,7 +82,7 @@ void timer_debug(void)
 
 }
 #else
-void timer_debug(void) {};
+/* No function is available */
 #endif
 /**
  * ISR(TIMER0_OVF_vect)

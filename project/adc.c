@@ -32,9 +32,6 @@
 #include "adc.h"
 #include "time.h"
 
-/*#define ADC_NOISE_DEBUG*/
-/*#define ADC_SCOPE_DEBUG*/
-
 /* Quick noise debug */
 #ifdef ADC_NOISE_DEBUG
 uint16_t adc_maxS = 0;
@@ -143,7 +140,7 @@ void adc_init(void)
 #endif
 
 }
-
+#ifdef ADC_SCOPE_DEBUG
 void adc_periodic(void)
 {
     /* STUB */
@@ -158,6 +155,9 @@ void adc_periodic(void)
         }
     }
 }
+#else
+/* nothing */
+#endif
 
 uint16_t adc_get(e_adc_channel channel)
 {
@@ -196,6 +196,7 @@ void adc_last_reset(void)
 
 
 /* TODO */
+/*
 #include <avr/delay.h>
 long readVcc() {
 
@@ -223,3 +224,4 @@ long readVcc() {
   result = 1125300L / result; // Calculate Vcc (in mV); 1125300 = 1.1*1023*1000
   return result; // Vcc in millivolts
 }
+*/

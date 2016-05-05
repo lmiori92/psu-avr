@@ -31,7 +31,7 @@
 
 /*#define STACK_MONITORING*/    /**< Enable stack monitoring */
 
-#include "stdint.h"
+#include <stdint.h>
 
 /** Output values */
 typedef struct
@@ -49,13 +49,10 @@ typedef struct
     uint32_t cycle_time_max;    /**< Maximum time it took the logic to execute */
     t_output output;            /**< State of the outputs */
     uint8_t  reset_reason;      /**< Reset reason (see datasheet) */
-    float    adc_min_ref;       /**< Minimum ADC attenuation (dB) */
-    float    adc_max;           /**< Maximum ADC value (0dB) */
 
 } t_operational;
 
 /* Globals */
-//extern t_operational operational;   /**< Global operational variable */
 extern uint8_t _end;
 extern uint8_t __stack;
 

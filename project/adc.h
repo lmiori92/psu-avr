@@ -22,6 +22,9 @@
 #ifndef ADC_H_
 #define ADC_H_
 
+/*#define ADC_NOISE_DEBUG*/
+/*#define ADC_SCOPE_DEBUG*/
+
 typedef enum _e_adc_channels
 {
     ADC_0,
@@ -35,10 +38,12 @@ typedef enum _e_adc_channels
 } e_adc_channel;
 
 void adc_init(void);
-void adc_periodic(void);
 uint16_t adc_get(e_adc_channel channel);
 void adc_last_capture(uint16_t *last_capture, uint16_t *adc_min, uint16_t *adc_max);
 void adc_last_reset(void);
 
+#ifdef ADC_SCOPE_DEBUG
+void adc_periodic(void);
+#endif
 
 #endif /* ADC_H_ */
