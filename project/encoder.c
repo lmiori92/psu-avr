@@ -119,17 +119,17 @@ ISR(PCINT2_vect)
         }
         else if (g_encoder[i].raw > 2)
         {
+            g_encoder[i].delta_t = g_timestamp - g_encoder[i].tick;
             g_encoder[i].value++;
             g_encoder[i].raw = 0;
-            g_encoder[i].delta_t = g_timestamp - g_encoder[i].tick;
             g_encoder[i].tick = g_timestamp;
             g_encoder[i].evt_cb(ENC_EVT_RIGHT, g_encoder[i].delta_t);
         }
         else if (g_encoder[i].raw < -2)
         {
+            g_encoder[i].delta_t = g_timestamp - g_encoder[i].tick;
             g_encoder[i].value--;
             g_encoder[i].raw = 0;
-            g_encoder[i].delta_t = g_timestamp - g_encoder[i].tick;
             g_encoder[i].tick = g_timestamp;
             g_encoder[i].evt_cb(ENC_EVT_LEFT, g_encoder[i].delta_t);
         }

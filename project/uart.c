@@ -20,16 +20,17 @@
 */
 
 #include <avr/io.h>
+#include <avr/interrupt.h>
 #include <stdio.h>
-#include "avr/power.h"
+#include <avr/power.h>
 
+/* Block to select the baudrate and precalculate prescaler values */
 #ifndef BAUD
-#define BAUD 115200
+#define BAUD 9600
 #endif
 #include <util/setbaud.h>
 
-#define BAUDRATE 115200
-#define BAUD_PRESCALLER (((F_CPU / (BAUDRATE * 16UL))) - 1)
+#include "uart.h"
 
 /* http://www.cs.mun.ca/~rod/Winter2007/4723/notes/serial/serial.html */
 
@@ -46,7 +47,13 @@
 #define    UCSZ1    UCSZ01
 #define    UCSZ0    UCSZ00
 
-void uart_init(void) {
+static t_uart_cb uart_cb = NULL;
+
+FILE uart_output = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRITE);
+FILE uart_input = FDEV_SETUP_STREAM(NULL, uart_getchar, _FDEV_SETUP_READ);
+
+void uart_init(void)
+{
 
     /* Enable UART power */
     power_usart0_enable();
@@ -67,29 +74,47 @@ void uart_init(void) {
     UCSRC = _BV(UCSZ1) | _BV(UCSZ0);
 
 
-    // rx/tx enable
+    /* Enable RX and TX */
     UCSR0B = _BV(RXEN) | _BV(TXEN);
 
-//    UCSR0B = (1<<RXEN0)|(1<<TXEN0); /* Enable RX and TX */
+    /* RX interrupt */
+    UCSR0B |= (1<<RXCIE0);
+
+//    UCSR0B = (1<<RXEN0)|(1<<TXEN0);
 //    UCSR0C = (3<<UCSZ00);           /* 8-bit data */
 
 //    UBRRH = UBRRH_VALUE;
 //    UBRRL = UBRRL_VALUE;
 
-
-
-
 }
 
-void uart_putchar(char c, FILE *stream) {
+ISR(USART_RX_vect)
+{
+    /* byte received ! */
+    if (uart_cb != NULL)
+    {
+        uart_cb(UDR);
+    }
+}
+
+void uart_callback(t_uart_cb cb)
+{
+    uart_cb = cb;
+}
+
+void uart_putchar(char c, FILE *stream)
+{
+    /*
     if (c == '\n') {
         uart_putchar('\r', stream);
     }
+    */
     loop_until_bit_is_set(UCSRA, UDRE);
     UDR = c;
 }
 
-char uart_getchar(FILE *stream) {
+char uart_getchar(FILE *stream)
+{
     loop_until_bit_is_set(UCSRA, RXC);
     return UDR;
 }

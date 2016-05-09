@@ -24,6 +24,10 @@
 
 #include <stdio.h>
 
+/** Reception callback function */
+typedef void (*t_uart_cb)(uint8_t byte);
+
+void uart_callback(t_uart_cb cb);
 void uart_putchar(char c, FILE *stream);
 char uart_getchar(FILE *stream);
 
@@ -31,7 +35,7 @@ void uart_init(void);
 
 /* http://www.ermicro.com/blog/?p=325 */
 
-FILE uart_output = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRITE);
-FILE uart_input = FDEV_SETUP_STREAM(NULL, uart_getchar, _FDEV_SETUP_READ);
+extern FILE uart_output;
+extern FILE uart_input;
 
 #endif /* _UART_H_ */
