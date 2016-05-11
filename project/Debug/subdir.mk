@@ -8,6 +8,7 @@ C_SRCS += \
 ../encoder.c \
 ../main.c \
 ../pwm.c \
+../remote.c \
 ../system.c \
 ../time.c \
 ../uart.c 
@@ -17,6 +18,7 @@ OBJS += \
 ./encoder.o \
 ./main.o \
 ./pwm.o \
+./remote.o \
 ./system.o \
 ./time.o \
 ./uart.o 
@@ -26,6 +28,7 @@ C_DEPS += \
 ./encoder.d \
 ./main.d \
 ./pwm.d \
+./remote.d \
 ./system.d \
 ./time.d \
 ./uart.d 

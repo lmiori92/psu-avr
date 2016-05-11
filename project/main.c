@@ -22,7 +22,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/delay.h>
-#include <avr/crc16.h>
 #include "adc.h"
 #include "encoder.h"
 #include "pwm.h"
@@ -38,155 +37,49 @@
 
 #define ADC_RESOLUTION      1023U
 
+// TODO refactor these below! (to finish the design and implementation)
+#define BUF_SIZE    10
+static uint8_t buffer[BUF_SIZE];
+///
+
 /* GLOBALS */
 static t_psu_channel psu_channels[PSU_CHANNEL_NUM];
-
-typedef enum _e_error
-{
-    E_OK,
-    E_UNKNOWN,
-    E_CRC,
-    E_MAGIC_START,
-    E_MAGIC_END,
-    E_OVERFLOW,
-    E_TIMEOUT,
-    E_RECEIVING_HDR /**< Datagram header not yet complete */
-} e_error;
 
 /* Definitions */
 static void lib_uint16_to_bytes(uint16_t input, uint8_t *lo, uint8_t *hi);
 static uint16_t lib_bytes_to_uint16(uint8_t lo, uint8_t hi);
 
-#define BUF_SIZE    10
-static uint8_t buffer[BUF_SIZE];
-static t_remote_datagram datagram_received;
-
-static e_error remote_datagram_to_buffer(t_remote_datagram *datagram, uint8_t *buffer, uint8_t size)
-{
-    if (size >= sizeof(t_remote_datagram))
-    {
-        /* enough large buffer */
-        memcpy(&datagram[0], &buffer, sizeof(t_remote_datagram));
-        return E_OK;
-    }
-    else
-    {
-        /* refuse to overflow ! */
-        return E_OVERFLOW;
-    }
-}
-
-typedef enum
-{
-    DGRAM_RCV_MAGIC_START,
-    DGRAM_RCV_HEADER,
-    DGRAM_RCV_MAGIC_END,
-
-} e_datagram_receive_state;
-
-#define DGRAM_RCV_TIMEOUT_US        1000000U
-
-static e_error remote_buffer_to_datagram(t_remote_datagram *datagram, uint8_t *buffer, uint8_t size)
-{
-    static e_datagram_receive_state state = DGRAM_RCV_MAGIC_START;
-    static e_datagram_receive_state state_prev = DGRAM_RCV_MAGIC_START;
-    static uint32_t timeout = 0;
-    static uint8_t buf[4] = { 0 };
-    static uint8_t buf_index = 0;
-    uint8_t i = 0;
-    e_error err = E_UNKNOWN;
-
-    for (i = 0; i < size; i++)
-    {
-
-        /* Run the state machine for each received byte */
-
-        switch(state)
-        {
-        case DGRAM_RCV_MAGIC_START:
-            /* Stay in there until the magic sequence is received */
-
-            buf[buf_index] = buffer[i];
-            buf_index++;
-
-            err = E_RECEIVING_HDR;
-
-            if (buf_index >= 4)
-            {
-                if (    (buf[0] == (uint8_t)MAGIC_START) &&
-                        (buf[1] == (uint8_t)((uint32_t)MAGIC_START >> 8)) &&
-                        (buf[2] == (uint8_t)((uint32_t)MAGIC_START >> 16)) &&
-                        (buf[3] == (uint8_t)((uint32_t)MAGIC_START >> 24))
-                     )
-                {
-                    /* alright, datagram header synchronized! */
-                    state = DGRAM_RCV_HEADER;
-                }
-                else
-                {
-                    /* Invalid magic or out of sync */
-                    err = E_MAGIC_START;
-                    buf_index = 0;
-                }
-            }
-
-            break;
-        default:
-            /* Fatal error */
-            break;
-        }
-
-        if ((buf_index > 0) && (g_timestamp > timeout))
-        {
-            /* timed out - restart the state machine */
-            //state = DGRAM_RCV_MAGIC_START;
-            //err = E_TIMEOUT;
-            //timeout = g_timestamp + DGRAM_RCV_TIMEOUT_US;
-            //buf_index = 0;
-        }
-
-        if (state != state_prev)
-        {
-            buf_index = 0;
-            timeout = g_timestamp + DGRAM_RCV_TIMEOUT_US;
-            state_prev = state;
-        }
-
-    }
-
-    return err;
-
-}
-
 void uart_received(uint8_t byte)
 {
+
     /* Call the state machine with a single byte... */
-    remote_buffer_to_datagram(&datagram_received, &byte, 1U);
+    remote_buffer_to_datagram(&byte, 1U);
+
 }
 
-static bool remote_calc_crc_buffer_and_compare(uint8_t *buffer, uint8_t len, uint16_t expected_crc, uint16_t *calc_crc)
+e_error remote_master_send(t_remote_datagram *datagram, uint8_t *buffer, t_psu_channel *channel)
 {
-    uint16_t crc;
-    uint8_t i;
 
-    for (i = 0; i < len; i++)
-    {
-        crc = _crc16_update(crc, buffer[i]);
-    }
+    datagram->len = BUF_SIZE;
+    datagram->crc = 0;
+    datagram->node_id = channel->remote_node;
+    datagram->magic_start = DGRAM_MAGIC_START;
+    datagram->magic_end = DGRAM_MAGIC_END;
 
-    if (calc_crc != NULL) *calc_crc = crc;
+    /* "Serialize" data (not really, it only works on the same architecture) */
 
-    if (crc != expected_crc)
-    {
-        return false;
-    }
-    else
-    {
-        return true;
-    }
+    /* Voltage setpoint for the remote channel */
+    lib_uint16_to_bytes(channel->voltage_setpoint.value.raw, &buffer[0], &buffer[1]);
+    /* Current setpoint for the remote channel */
+    lib_uint16_to_bytes(channel->current_setpoint.value.raw, &buffer[2], &buffer[3]);
+
+    /* Calc the CRC */
+    (void)remote_calc_crc_buffer_and_compare(buffer, BUF_SIZE, 0U, &datagram->crc);
+
+    return E_OK;
 }
 
-static e_error remote_master_recv(t_remote_datagram *datagram, uint8_t *buffer, t_psu_channel *channel)
+e_error remote_master_recv(t_remote_datagram *datagram, uint8_t *buffer, t_psu_channel *channel)
 {
 
     bool crc_ok;
@@ -210,28 +103,6 @@ static e_error remote_master_recv(t_remote_datagram *datagram, uint8_t *buffer, 
     }
 
     return err;
-}
-
-static e_error remote_master_send(t_remote_datagram *datagram, uint8_t *buffer, t_psu_channel *channel)
-{
-
-    datagram->len = BUF_SIZE;
-    datagram->crc = 0;
-    datagram->node_id = channel->remote_node;
-    datagram->magic_start = MAGIC_START;
-    datagram->magic_end = MAGIC_END;
-
-    /* "Serialize" data (not really, it only works on the same architecture) */
-
-    /* Voltage setpoint for the remote channel */
-    lib_uint16_to_bytes(channel->voltage_setpoint.value.raw, &buffer[0], &buffer[1]);
-    /* Current setpoint for the remote channel */
-    lib_uint16_to_bytes(channel->current_setpoint.value.raw, &buffer[2], &buffer[3]);
-
-    /* Calc the CRC */
-    (void)remote_calc_crc_buffer_and_compare(buffer, BUF_SIZE, 0U, &datagram->crc);
-
-    return E_OK;
 }
 
 static void lib_uint32_to_bytes(uint32_t input, uint8_t *lo, uint8_t *milo, uint8_t *hilo, uint8_t *hi)
@@ -510,7 +381,7 @@ static void output_processing(void)
     }
 
 }
-
+/*
 static void dbg_print_values(t_psu_channel *psu_chs, uint8_t num_psu)
 {
     uint8_t i = 0;
@@ -524,8 +395,29 @@ static void dbg_print_values(t_psu_channel *psu_chs, uint8_t num_psu)
         printf(" (%u)\r\n", psu_chs[i].current_setpoint.value.scaled);
     }
 }
+*/
 
-
+/**
+ * Parse the received datagram(s)
+ */
+static t_remote_datagram_buffer dgram_rcv;
+static void remote_rcv_parse_datagram(void)
+{
+    bool new;
+    bool crc_ok;
+    uint8_t i = 0;
+    do
+    {
+        new = remote_receive_buffer_get_oldest_copy(&dgram_rcv);
+        crc_ok = remote_calc_crc_buffer_and_compare(dgram_rcv.data, dgram_rcv.datagram.len, dgram_rcv.datagram.crc, NULL);
+        if ((new == true) && (crc_ok == true))
+        {
+            printf("%s\r\n", dgram_rcv.data);
+        }
+        i++;
+    }
+    while ((new == true) && (i < DGRAM_RCV_BUFFER_LEN));
+}
 
 int main(void)
 {
@@ -591,6 +483,11 @@ int main(void)
 #endif
         /* Output processing */
         output_processing();
+
+        // reception test
+//_delay_ms(10);
+        // TEST ONLY
+remote_rcv_parse_datagram();
 
         uint8_t i = 0;
         uint8_t datagram_metadata[sizeof(t_remote_datagram)];
