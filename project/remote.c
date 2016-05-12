@@ -93,7 +93,7 @@ void remote_send_buffer_alloc(t_remote_datagram_buffer** datagram_buf)
     remote_buffer_alloc(remote_snd_buf, datagram_buf);
 }
 
-void remote_receive_buffer_get_oldest(t_remote_datagram_buffer** datagram_buf)
+void remote_buffer_get_oldest(t_remote_datagram_buffer *static_buffer, t_remote_datagram_buffer** datagram_buf)
 {
     uint8_t i;
     uint8_t id = 0xFF;
@@ -101,14 +101,24 @@ void remote_receive_buffer_get_oldest(t_remote_datagram_buffer** datagram_buf)
     *datagram_buf = NULL;
     for (i = 0; (i < DGRAM_RCV_BUFFER_LEN) || (i == 0xFFU); i++)  /* ...do not overflow if 0xFF! */
     {
-        if ((remote_rcv_buf[i].timestamp > 0U) && (remote_rcv_buf[i].timestamp < oldest))
+        if ((static_buffer[i].timestamp > 0U) && (static_buffer[i].timestamp < oldest))
         {
             id = i;
-            oldest = remote_rcv_buf[i].timestamp;
+            oldest = static_buffer[i].timestamp;
         }
     }
 
-    if (id != 0xFF) *datagram_buf = &(remote_rcv_buf[id]);
+    if (id != 0xFF) *datagram_buf = &(static_buffer[id]);
+}
+
+void remote_receive_buffer_get_oldest(t_remote_datagram_buffer** datagram_buf)
+{
+    remote_buffer_get_oldest(remote_rcv_buf, datagram_buf);
+}
+
+void remote_send_buffer_get_oldest(t_remote_datagram_buffer** datagram_buf)
+{
+    remote_buffer_get_oldest(remote_snd_buf, datagram_buf);
 }
 
 bool remote_receive_buffer_get(t_remote_datagram_buffer *datagram)
@@ -141,6 +151,29 @@ void remote_send_buffer_send(t_remote_datagram_buffer *rem_buf)
     rem_buf->timestamp = g_timestamp;
 
     REMOTE_EXIT_CRITICAL_SECTION;
+}
+
+bool remote_calc_crc_buffer_and_compare(uint8_t *buffer, uint8_t len, uint16_t expected_crc, uint16_t *calc_crc)
+{
+    uint16_t i;
+    uint16_t crc = 0;
+
+    for (i = 0; i < len; i++)
+    {
+        crc = _crc16_update(crc, buffer[i]);
+    }
+
+    if (calc_crc != NULL) *calc_crc = crc;
+
+    if ((crc != expected_crc) || (len == 0U))
+    {
+        /* CRC is unexpected or length is zero -> something failed */
+        return false;
+    }
+    else
+    {
+        return true;
+    }
 }
 
 e_error remote_buffer_to_datagram(uint8_t input)
@@ -264,30 +297,42 @@ e_error remote_buffer_to_datagram(uint8_t input)
 
 }
 
-bool remote_calc_crc_buffer_and_compare(uint8_t *buffer, uint8_t len, uint16_t expected_crc, uint16_t *calc_crc)
+void datagram_buffer_to_remote(void)
 {
-    uint16_t i;
-    uint16_t crc = 0;
 
-    for (i = 0; i < len; i++)
+    /* Just a non interrupt driven stub to start with */
+
+    t_remote_datagram_buffer *buf = NULL;
+
+    uint8_t i = 0;
+    uint8_t datagram_metadata[sizeof(t_remote_datagram)];
+
+    remote_send_buffer_get_oldest(&buf);
+
+    if (buf != NULL)
     {
-        crc = _crc16_update(crc, buffer[i]);
-    }
 
-    if (calc_crc != NULL) *calc_crc = crc;
+        remote_datagram_to_buffer(&buf->datagram, datagram_metadata, sizeof(t_remote_datagram));
 
-    if ((crc != expected_crc) || (len == 0U))
-    {
-        /* CRC is unexpected or length is zero -> something failed */
-        return false;
+        for (i = 0; i < sizeof(t_remote_datagram); i++)
+        {
+            uart_putchar(datagram_metadata[i], NULL);
+        }
+        for (i = 0; i < buf->datagram.len; i++)
+        {
+            uart_putchar(buf->data[i], NULL);
+        }
+
+        /* immediately reset timestamp
+         * CAUTION: critical section! */
+        REMOTE_ENTER_CRITICAL_SECTION;
+        buf->timestamp = 0U;
+        REMOTE_EXIT_CRITICAL_SECTION;
     }
     else
     {
-        return true;
+        /* nothing to send */
     }
+
 }
-
-
-
-
 

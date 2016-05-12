@@ -35,7 +35,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define ADC_RESOLUTION      1023U
+#define ADC_RESOLUTION      1023U       // TODO get it via an ADC API
 
 /* GLOBALS */
 static t_psu_channel psu_channels[PSU_CHANNEL_NUM];
@@ -505,7 +505,7 @@ static void output_processing(void)
         else
         {
             /* Slave(s)<->Master communication takes care of that */
-            remote_encode_datagram(DATATYPE_SETPOINTS, &psu_channels[i]);
+            remote_encode_datagram(DATATYPE_SETPOINTS, &psu_channels[0]);
         }
     }
 
@@ -591,18 +591,7 @@ int main(void)
         /* Output processing */
         output_processing();
 
-        uint8_t i = 0;
-        uint8_t datagram_metadata[sizeof(t_remote_datagram)];
-//        remote_datagram_to_buffer(&datagram, datagram_metadata, sizeof(t_remote_datagram));
-
-//        for (i = 0; i < sizeof(t_remote_datagram); i++)
-        {
-//            uart_putchar(datagram_metadata[i], NULL);
-        }
-//        for (i = 0; i < datagram.len; i++)
-        {
-//            uart_putchar(buffer[i], NULL);
-        }
+        datagram_buffer_to_remote();
 
     }
 

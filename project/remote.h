@@ -92,16 +92,24 @@ typedef struct
     t_remote_datagram_buffer   *datagram_buf;
 } t_remote_receive_state_machine;
 
-e_error remote_datagram_to_buffer(t_remote_datagram *datagram, uint8_t *buffer, uint8_t size);
-void remote_receive_buffer_alloc(t_remote_datagram_buffer** datagram_buf);
+/** Buffer management **/
+void remote_buffer_get_oldest(t_remote_datagram_buffer *static_buffer, t_remote_datagram_buffer** datagram_buf);
 void remote_receive_buffer_get_oldest(t_remote_datagram_buffer** datagram_buf);
-bool remote_receive_buffer_get(t_remote_datagram_buffer *datagram);
+void remote_send_buffer_get_oldest(t_remote_datagram_buffer** datagram_buf);
 
+void remote_buffer_alloc(t_remote_datagram_buffer *static_buffer, t_remote_datagram_buffer** datagram_buf);
+void remote_receive_buffer_alloc(t_remote_datagram_buffer** datagram_buf);
 void remote_send_buffer_alloc(t_remote_datagram_buffer** datagram_buf);
+
+bool remote_receive_buffer_get(t_remote_datagram_buffer *datagram);
 void remote_send_buffer_send(t_remote_datagram_buffer *rem_buf);
 
-e_error remote_buffer_to_datagram(uint8_t input);
-
+/** utilities **/
 bool remote_calc_crc_buffer_and_compare(uint8_t *buffer, uint8_t len, uint16_t expected_crc, uint16_t *calc_crc);
+e_error remote_datagram_to_buffer(t_remote_datagram *datagram, uint8_t *buffer, uint8_t size);
+
+/** mid-level transmit and receive state machines **/
+e_error remote_buffer_to_datagram(uint8_t input);
+void datagram_buffer_to_remote(void);
 
 #endif /* REMOTE_H_ */
