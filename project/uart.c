@@ -104,13 +104,17 @@ void uart_callback(t_uart_cb cb)
 
 void uart_putchar(char c, FILE *stream)
 {
-    /*
-    if (c == '\n') {
-        uart_putchar('\r', stream);
-    }
-    */
     loop_until_bit_is_set(UCSRA, UDRE);
     UDR = c;
+}
+
+void uart_putstring(char *str)
+{
+    while (*str != 0)
+    {
+        uart_putchar(*str, NULL);
+        str++;
+    }
 }
 
 char uart_getchar(FILE *stream)

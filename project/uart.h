@@ -29,6 +29,7 @@ typedef void (*t_uart_cb)(uint8_t byte);
 
 void uart_callback(t_uart_cb cb);
 void uart_putchar(char c, FILE *stream);
+void uart_putstring(char *str);
 char uart_getchar(FILE *stream);
 
 void uart_init(void);

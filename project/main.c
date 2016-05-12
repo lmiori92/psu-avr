@@ -37,11 +37,6 @@
 
 #define ADC_RESOLUTION      1023U
 
-// TODO refactor these below! (to finish the design and implementation)
-#define BUF_SIZE    10
-static uint8_t buffer[BUF_SIZE];
-///
-
 /* GLOBALS */
 static t_psu_channel psu_channels[PSU_CHANNEL_NUM];
 
@@ -49,60 +44,196 @@ static t_psu_channel psu_channels[PSU_CHANNEL_NUM];
 static void lib_uint16_to_bytes(uint16_t input, uint8_t *lo, uint8_t *hi);
 static uint16_t lib_bytes_to_uint16(uint8_t lo, uint8_t hi);
 
+/* Remote application level buffers */
+static t_remote_datagram_buffer remote_dgram_rcv_copy;
+
 void uart_received(uint8_t byte)
 {
 
+    /* NOTE: interrupt callback. Pay attention to execution time... */
+
     /* Call the state machine with a single byte... */
-    remote_buffer_to_datagram(&byte, 1U);
+    remote_buffer_to_datagram(byte);
 
 }
 
-e_error remote_master_send(t_remote_datagram *datagram, uint8_t *buffer, t_psu_channel *channel)
+static void remote_encode_setpoint(t_remote_datagram_buffer *datagram, t_psu_channel *channel)
 {
 
-    datagram->len = BUF_SIZE;
-    datagram->crc = 0;
-    datagram->node_id = channel->remote_node;
-    datagram->magic_start = DGRAM_MAGIC_START;
-    datagram->magic_end = DGRAM_MAGIC_END;
+    datagram->datagram.node_id     = channel->remote_node;
+    datagram->datagram.magic_start = DGRAM_MAGIC_START;
+    datagram->datagram.magic_end   = DGRAM_MAGIC_END;
 
     /* "Serialize" data (not really, it only works on the same architecture) */
 
+    /* Datatype */
+    datagram->data[0] = DATATYPE_SETPOINTS;
     /* Voltage setpoint for the remote channel */
-    lib_uint16_to_bytes(channel->voltage_setpoint.value.raw, &buffer[0], &buffer[1]);
+    lib_uint16_to_bytes(channel->voltage_setpoint.value.raw, &datagram->data[1], &datagram->data[2]);
     /* Current setpoint for the remote channel */
-    lib_uint16_to_bytes(channel->current_setpoint.value.raw, &buffer[2], &buffer[3]);
+    lib_uint16_to_bytes(channel->current_setpoint.value.raw, &datagram->data[3], &datagram->data[4]);
+
+    /* set byte length */
+    datagram->datagram.len         = 5U;
 
     /* Calc the CRC */
-    (void)remote_calc_crc_buffer_and_compare(buffer, BUF_SIZE, 0U, &datagram->crc);
+    (void)remote_calc_crc_buffer_and_compare(datagram->data, datagram->datagram.len, 0U, &datagram->datagram.crc);
 
-    return E_OK;
 }
 
-e_error remote_master_recv(t_remote_datagram *datagram, uint8_t *buffer, t_psu_channel *channel)
+static void remote_encode_readout(t_remote_datagram_buffer *datagram, t_psu_channel *channel)
 {
 
-    bool crc_ok;
-    e_error err = E_UNKNOWN;
+    datagram->datagram.node_id     = channel->remote_node;
+    datagram->datagram.magic_start = DGRAM_MAGIC_START;
+    datagram->datagram.magic_end   = DGRAM_MAGIC_END;
 
-    crc_ok = remote_calc_crc_buffer_and_compare(buffer, BUF_SIZE, datagram->crc, NULL);
+    /* "Serialize" data (not really, it only works on the same architecture) */
 
-    if (crc_ok == false)
+    /* Datatype */
+    datagram->data[0] = DATATYPE_READOUTS;
+    /* Voltage measurement for the remote channel */
+    lib_uint16_to_bytes(channel->voltage_readout.value.raw, &datagram->data[1], &datagram->data[2]);
+    /* Current measurement for the remote channel */
+    lib_uint16_to_bytes(channel->current_readout.value.raw, &datagram->data[3], &datagram->data[4]);
+
+    /* set byte length */
+    datagram->datagram.len         = 5U;
+
+    /* Calc the CRC */
+    (void)remote_calc_crc_buffer_and_compare(datagram->data, datagram->datagram.len, 0U, &datagram->datagram.crc);
+
+}
+
+static void remote_decode_readout(t_remote_datagram_buffer *datagram, t_psu_channel *channel)
+{
+    if ((datagram != NULL) && (channel != NULL) && (datagram->datagram.len >= 5U))
     {
-        /* invalid data */
-        err = E_CRC;
+        /* Voltage setpoint for the remote channel */
+        channel->voltage_readout.value.raw = lib_bytes_to_uint16(datagram->data[1], datagram->data[2]);
+        /* Current setpoint for the remote channel */
+        channel->current_readout.value.raw = lib_bytes_to_uint16(datagram->data[3], datagram->data[4]);
+    }
+}
+
+static void remote_encode_config(t_remote_datagram_buffer *datagram, t_psu_channel *channel)
+{
+    if ((datagram != NULL) && (channel != NULL))
+    {
+        /* STUB */
+    }
+}
+
+static void remote_decode_config(t_remote_datagram_buffer *datagram, t_psu_channel *channel)
+{
+    if ((datagram != NULL) && (channel != NULL))
+    {
+        /* STUB */
+        /* Config received, set to operational */
+        channel->state = PSU_STATE_OPERATIONAL;
+    }
+}
+
+t_psu_channel* psu_get_channel_from_node_id(uint8_t node_id)
+{
+    uint16_t i = 0;
+
+    t_psu_channel* ret = NULL;
+
+    for (i = 0; i < PSU_CHANNEL_NUM; i++)
+    {
+        if (psu_channels[i].remote_node == node_id)
+        {
+            ret = &psu_channels[i];
+        }
+    }
+
+    return ret;
+}
+
+/**
+ * Parse the received datagram(s)
+ */
+static void remote_decode_datagram(void)
+{
+    bool new;
+    bool crc_ok;
+    uint8_t i = 0;
+
+    do
+    {
+        new = remote_receive_buffer_get(&remote_dgram_rcv_copy);
+        if (new == true)
+        {
+            crc_ok = remote_calc_crc_buffer_and_compare(remote_dgram_rcv_copy.data, remote_dgram_rcv_copy.datagram.len, remote_dgram_rcv_copy.datagram.crc, NULL);
+            if ((crc_ok == true) && (remote_dgram_rcv_copy.datagram.len > 0U))
+            {
+
+                switch (remote_dgram_rcv_copy.data[0])
+                {
+                case DATAYPE_DEBUG:
+                    /* debug data (usually a string) */
+                    uart_putstring(remote_dgram_rcv_copy.data);
+                    uart_putstring("\r\n");
+                    break;
+                case DATATYPE_CONFIG:
+                    /* config data */
+                    remote_decode_config(&remote_dgram_rcv_copy, psu_get_channel_from_node_id(remote_dgram_rcv_copy.datagram.node_id));
+                    break;
+                case DATATYPE_READOUTS:
+                    /* readout data */
+                    remote_decode_readout(&remote_dgram_rcv_copy, psu_get_channel_from_node_id(remote_dgram_rcv_copy.datagram.node_id));
+                    break;
+                case DATATYPE_SETPOINTS:
+                    /* setpoints data */
+                    break;
+                default:
+                    break;
+                }
+            }
+        }
+        i++;
+    }
+    while ((new == true) && (i < DGRAM_RCV_BUFFER_LEN));
+}
+
+static void remote_encode_datagram(e_datatype type, t_psu_channel *channel)
+{
+
+    t_remote_datagram_buffer *rem_buf;
+    remote_send_buffer_alloc(&rem_buf);
+
+    if (rem_buf != NULL)
+    {
+
+        switch (type)
+        {
+        case DATAYPE_DEBUG:
+            /* debug data (usually a string) */
+            break;
+        case DATATYPE_CONFIG:
+            /* config data */
+            remote_encode_config(rem_buf, channel);
+            break;
+        case DATATYPE_READOUTS:
+            /* readout data */
+            remote_encode_readout(rem_buf, channel);
+            break;
+        case DATATYPE_SETPOINTS:
+            /* setpoints data */
+            break;
+        default:
+            break;
+        }
+
+        /* set the datagram as sendable */
+        remote_send_buffer_send(rem_buf);
     }
     else
     {
-        /* data is valid */
-
-        /* Voltage setpoint for the remote channel */
-        channel->voltage_readout.value.raw = lib_bytes_to_uint16(buffer[0], buffer[1]);
-        /* Current setpoint for the remote channel */
-        channel->current_readout.value.raw = lib_bytes_to_uint16(buffer[2], buffer[3]);
+        /* Send buffer overflow */
+        uart_putstring("send ovf\r\n");
     }
-
-    return err;
 }
 
 static void lib_uint32_to_bytes(uint32_t input, uint8_t *lo, uint8_t *milo, uint8_t *hilo, uint8_t *hi)
@@ -272,8 +403,8 @@ static void init_io(void)
     /* UART */
     uart_init();
     uart_callback(uart_received);
-    stdout = &uart_output;
-    stdin  = &uart_input;
+    //stdout = &uart_output;
+    //stdin  = &uart_input;
 
     /* ADC */
     adc_init();
@@ -330,13 +461,13 @@ static void psu_preprocessing(t_psu_channel *channel)
     lib_scale(&channel->current_setpoint.value, &channel->current_setpoint.scale);
 }
 
-/* testing */
-static t_remote_datagram datagram;
-
 static void input_processing(void)
 {
 
     uint8_t i;
+
+    /* Parse remote datagrams */
+    remote_decode_datagram();
 
     for (i = 0; i < (uint8_t)PSU_CHANNEL_NUM; i++)
     {
@@ -347,8 +478,7 @@ static void input_processing(void)
         }
         else
         {
-            /* Slave(s)<->Master communication */
-            remote_master_recv(&datagram, buffer, &psu_channels[i]);
+            /* Slave(s)<->Master communication takes care of that */
         }
 
         /* Post-processing (scaling) of the values */
@@ -374,9 +504,8 @@ static void output_processing(void)
         }
         else
         {
-            /* Slave(s)<->Master communication */
-            // TODO NOTE THE 0, just for testing :-)
-            remote_master_send(&datagram, buffer, &psu_channels[0]);
+            /* Slave(s)<->Master communication takes care of that */
+            remote_encode_datagram(DATATYPE_SETPOINTS, &psu_channels[i]);
         }
     }
 
@@ -396,28 +525,6 @@ static void dbg_print_values(t_psu_channel *psu_chs, uint8_t num_psu)
     }
 }
 */
-
-/**
- * Parse the received datagram(s)
- */
-static t_remote_datagram_buffer dgram_rcv;
-static void remote_rcv_parse_datagram(void)
-{
-    bool new;
-    bool crc_ok;
-    uint8_t i = 0;
-    do
-    {
-        new = remote_receive_buffer_get_oldest_copy(&dgram_rcv);
-        crc_ok = remote_calc_crc_buffer_and_compare(dgram_rcv.data, dgram_rcv.datagram.len, dgram_rcv.datagram.crc, NULL);
-        if ((new == true) && (crc_ok == true))
-        {
-            printf("%s\r\n", dgram_rcv.data);
-        }
-        i++;
-    }
-    while ((new == true) && (i < DGRAM_RCV_BUFFER_LEN));
-}
 
 int main(void)
 {
@@ -444,7 +551,7 @@ int main(void)
     lib_scale(&channels[0].voltage_readout.value, &channels[0].voltage_readout.scale);
     printf("Raw is %d and scaled is %d\r\n", channels[0].voltage_readout.value.raw, channels[0].voltage_readout.value.scaled);
 */
-    printf("\x1B[2J\x1B[H");
+    uart_putstring("\x1B[2J\x1B[H");
 
     while (1)
     {
@@ -484,20 +591,15 @@ int main(void)
         /* Output processing */
         output_processing();
 
-        // reception test
-//_delay_ms(10);
-        // TEST ONLY
-remote_rcv_parse_datagram();
-
         uint8_t i = 0;
         uint8_t datagram_metadata[sizeof(t_remote_datagram)];
-        remote_datagram_to_buffer(&datagram, datagram_metadata, sizeof(t_remote_datagram));
+//        remote_datagram_to_buffer(&datagram, datagram_metadata, sizeof(t_remote_datagram));
 
-        for (i = 0; i < sizeof(t_remote_datagram); i++)
+//        for (i = 0; i < sizeof(t_remote_datagram); i++)
         {
 //            uart_putchar(datagram_metadata[i], NULL);
         }
-        for (i = 0; i < datagram.len; i++)
+//        for (i = 0; i < datagram.len; i++)
         {
 //            uart_putchar(buffer[i], NULL);
         }

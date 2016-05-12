@@ -1,8 +1,29 @@
 /*
- * psu.h
- *
- *  Created on: 08 mag 2016
- *      Author: lorenzo
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+    Lorenzo Miori (C) 2016 [ 3M4|L: memoryS60<at>gmail.com ]
+
+    Version History
+        * 1.0 initial
+
+*/
+
+/**
+ * @file remote.c
+ * @author Lorenzo Miori
+ * @date May 2016
+ * @brief Encoder subsystem: initialization and routines to handle them
  */
 
 #ifndef PSU_H_
@@ -11,6 +32,13 @@
 #include <stdint.h>
 
 typedef uint16_t t_value_type;
+
+typedef enum
+{
+    PSU_STATE_PREOPERATIONAL,
+    PSU_STATE_OPERATIONAL,
+    PSU_STATE_SAFE_STATE
+} e_psu_state;
 
 typedef struct
 {
@@ -40,17 +68,18 @@ typedef struct _t_current
 
 typedef struct _t_channel
 {
-    uint8_t remote_node;        /**< 0: local node; >1: remote node monitoring */
+    uint8_t        remote_node;             /**< 0: local node; >1: remote node monitoring */
+    e_psu_state    state;                   /**< PSU Channel state */
 
-    t_voltage voltage_setpoint;
-    t_voltage voltage_readout;
-    e_adc_channel voltage_adc_channel;
-    e_pwm_channel voltage_pwm_channel;
+    t_voltage      voltage_setpoint;        /**< Voltage setpoint for the channel */
+    t_voltage      voltage_readout;         /**< Voltage measurement for the channel */
+    e_adc_channel  voltage_adc_channel;     /**< Voltage measurement ADC channel */
+    e_pwm_channel  voltage_pwm_channel;     /**< Voltage output PWM channel */
 
-    t_current current_setpoint;
-    t_current current_readout;
-    e_adc_channel current_adc_channel;
-    e_pwm_channel current_pwm_channel;
+    t_current      current_setpoint;        /**< Current setpoint for the channel */
+    t_current      current_readout;         /**< Current measurement for the channel */
+    e_adc_channel  current_adc_channel;     /**< Current measurement ADC channel */
+    e_pwm_channel  current_pwm_channel;     /**< Current output PWM channel */
 } t_psu_channel;
 
 typedef enum _e_psu_channels

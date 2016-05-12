@@ -1,8 +1,29 @@
 /*
- * remote.c
- *
- *  Created on: 11 mag 2016
- *      Author: lorenzo
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+    Lorenzo Miori (C) 2016 [ 3M4|L: memoryS60<at>gmail.com ]
+
+    Version History
+        * 1.0 initial
+
+*/
+
+/**
+ * @file remote.h
+ * @author Lorenzo Miori
+ * @date May 2016
+ * @brief The remote transmission protocol.
  */
 
 #include "error.h"
@@ -10,12 +31,27 @@
 #include "time.h"   /* g_s_timestamp (maybe try to generalize and design without this contraint) */
 
 #include <util/crc16.h>
+#include <util/atomic.h>
 
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
+#define REMOTE_ENTER_CRITICAL_SECTION       cli()   /**< Call it when handling a shared environment */
+#define REMOTE_EXIT_CRITICAL_SECTION        sei()   /**< Call it when done handling a shared environment */
+
+static t_remote_receive_state_machine remote_rcv_sm =
+{
+    DGRAM_RCV_MAGIC_START,
+    DGRAM_RCV_MAGIC_START,
+    0U,
+    0U,
+    0U,
+    NULL
+};
+
 static t_remote_datagram_buffer remote_rcv_buf[DGRAM_RCV_BUFFER_LEN];
+static t_remote_datagram_buffer remote_snd_buf[DGRAM_SND_BUFFER_LEN];
 
 e_error remote_datagram_to_buffer(t_remote_datagram *datagram, uint8_t *buffer, uint8_t size)
 {
@@ -32,17 +68,29 @@ e_error remote_datagram_to_buffer(t_remote_datagram *datagram, uint8_t *buffer, 
     }
 }
 
-void remote_receive_buffer_alloc(t_remote_datagram_buffer** datagram_buf)
+void remote_buffer_alloc(t_remote_datagram_buffer *static_buffer, t_remote_datagram_buffer** datagram_buf)
 {
     uint8_t i;
     *datagram_buf = NULL;
     for (i = 0; (i < DGRAM_RCV_BUFFER_LEN) || (i == 0xFFU); i++)  /* ...do not overflow if 0xFF! */
     {
-        if (remote_rcv_buf[i].timestamp == 0U)
+        if (static_buffer[i].timestamp == 0U)
         {
-            *datagram_buf = &(remote_rcv_buf[i]);
+            *datagram_buf = &(static_buffer[i]);
         }
     }
+}
+
+void remote_receive_buffer_alloc(t_remote_datagram_buffer** datagram_buf)
+{
+    /* wrapper */
+    remote_buffer_alloc(remote_rcv_buf, datagram_buf);
+}
+
+void remote_send_buffer_alloc(t_remote_datagram_buffer** datagram_buf)
+{
+    /* wrapper */
+    remote_buffer_alloc(remote_snd_buf, datagram_buf);
 }
 
 void remote_receive_buffer_get_oldest(t_remote_datagram_buffer** datagram_buf)
@@ -63,7 +111,7 @@ void remote_receive_buffer_get_oldest(t_remote_datagram_buffer** datagram_buf)
     if (id != 0xFF) *datagram_buf = &(remote_rcv_buf[id]);
 }
 
-bool remote_receive_buffer_get_oldest_copy(t_remote_datagram_buffer *datagram)
+bool remote_receive_buffer_get(t_remote_datagram_buffer *datagram)
 {
     t_remote_datagram_buffer *buf = NULL;
     remote_receive_buffer_get_oldest(&buf);
@@ -74,7 +122,9 @@ bool remote_receive_buffer_get_oldest_copy(t_remote_datagram_buffer *datagram)
         (void)memcpy(datagram, buf, sizeof(t_remote_datagram_buffer));
         /* immediately reset timestamp
          * CAUTION: critical section! */
+        REMOTE_ENTER_CRITICAL_SECTION;
         buf->timestamp = 0U;
+        REMOTE_EXIT_CRITICAL_SECTION;
         return true;
     }
     else
@@ -83,56 +133,58 @@ bool remote_receive_buffer_get_oldest_copy(t_remote_datagram_buffer *datagram)
     }
 }
 
-e_error remote_buffer_to_datagram(uint8_t *input, uint8_t size)
+void remote_send_buffer_send(t_remote_datagram_buffer *rem_buf)
 {
-    static e_datagram_receive_state state = DGRAM_RCV_MAGIC_START;
-    static e_datagram_receive_state state_prev = DGRAM_RCV_MAGIC_START;
-    static uint32_t timeout = 0;
-    static uint8_t buf[DATAGRAM_HEADER_SIZE];
-    static uint32_t temp;
-    static uint8_t buf_index = 0;
-    static t_remote_datagram_buffer *datagram_buf;
-    uint8_t i = 0;
-    e_error err = E_OK;
+    REMOTE_ENTER_CRITICAL_SECTION;
 
-    for (i = 0; i < size; i++)
+    /* mark as sendable */
+    rem_buf->timestamp = g_timestamp;
+
+    REMOTE_EXIT_CRITICAL_SECTION;
+}
+
+e_error remote_buffer_to_datagram(uint8_t input)
+{
+
+    e_error err = E_OK;    /* save the error code or so */
+
+    /* Run the state machine for each received byte */
+    if (g_timestamp > remote_rcv_sm.timeout)
     {
+        /* timed out - restart the state machine */
+        remote_rcv_sm.state = DGRAM_RCV_MAGIC_START;
+        remote_rcv_sm.state_prev = DGRAM_RCV_MAGIC_END;   /* force state change to reuse code */
+        err = E_TIMEOUT;
+    }
 
-        /* Run the state machine for each received byte */
-        if (g_timestamp > timeout)
-        {
-            /* timed out - restart the state machine */
-            state = DGRAM_RCV_MAGIC_START;
-            state_prev = DGRAM_RCV_MAGIC_END;   /* force state change to reuse code */
-            err = E_TIMEOUT;
-        }
+    if (remote_rcv_sm.state != remote_rcv_sm.state_prev)
+    {
+        /* reset timeouts and indexes at state change */
+        remote_rcv_sm.temp = 0;
+        remote_rcv_sm.buf_index = 0;
+        remote_rcv_sm.timeout = g_timestamp + DGRAM_RCV_TIMEOUT_US;
+        remote_rcv_sm.state_prev = remote_rcv_sm.state;
+    }
 
-        if (state != state_prev)
-        {
-            temp = 0;
-            buf_index = 0;
-            timeout = g_timestamp + DGRAM_RCV_TIMEOUT_US;
-            state_prev = state;
-        }
-
-        switch(state)
-        {
+    switch(remote_rcv_sm.state)
+    {
         case DGRAM_RCV_MAGIC_START:
             /* Stay in there until the magic sequence is received */
 
-            temp <<= 8U;    /* shift 1 byte to the left (to make space for the new one) */
-            temp |= input[i];
+            remote_rcv_sm.temp <<= 8U;    /* shift 1 byte to the left (to make space for the new one) */
+            remote_rcv_sm.temp |= input;
 
-            if (temp == DGRAM_MAGIC_START)
+            if (remote_rcv_sm.temp == DGRAM_MAGIC_START)
             {
                 /* new datagram is incoming: allocate a buffer slot, if possible */
-                remote_receive_buffer_alloc(&datagram_buf);
-                if (datagram_buf != NULL)
+                remote_receive_buffer_alloc(&remote_rcv_sm.datagram_buf);
+                if (remote_rcv_sm.datagram_buf != NULL)
                 {
-                    /* copy the magic number */
-                    datagram_buf->datagram.magic_start = temp;
+                    /* clear some fields */
+                    remote_rcv_sm.datagram_buf->datagram.crc = 0;
+                    remote_rcv_sm.datagram_buf->datagram.len = 0;
                     /* alright, datagram header synchronized! */
-                    state = DGRAM_RCV_HEADER;
+                    remote_rcv_sm.state = DGRAM_RCV_HEADER;
                 }
                 else
                 {
@@ -147,40 +199,37 @@ e_error remote_buffer_to_datagram(uint8_t *input, uint8_t size)
             }
 
             /* Never timeout in this state */
-            timeout = g_timestamp + DGRAM_RCV_TIMEOUT_US;
+            remote_rcv_sm.timeout = g_timestamp + DGRAM_RCV_TIMEOUT_US;
 
             break;
         case DGRAM_RCV_HEADER:
 
-            /* State transition happens, so this is safe */
-            buf[buf_index] = input[i];
-            buf_index++;
+            /* Use pointer arithmetic to optimize the ISR call:
+             * Pick the start address, sum it up with the buf index
+             * and finally set the value at the location to the input */
+            *((uint8_t*)&(DATAGRAM_HEADER_START(remote_rcv_sm.datagram_buf->datagram)) + remote_rcv_sm.buf_index) = input;
+            remote_rcv_sm.buf_index++;
 
-            if (buf_index >= DATAGRAM_HEADER_SIZE)
+            if (remote_rcv_sm.buf_index >= DATAGRAM_HEADER_SIZE)
             {
-                /* raw copy the received data. Cannot overflow due to
-                 * the above macro which exactly calculates field size */
-                (void)memcpy(&(DATAGRAM_HEADER_START(datagram_buf->datagram)), buf, DATAGRAM_HEADER_SIZE);
                 /* header completely received */
-                state = DGRAM_RCV_MAGIC_END;
-                buf_index = 0;
+                remote_rcv_sm.state = DGRAM_RCV_MAGIC_END;
+                remote_rcv_sm.buf_index = 0;
             }
 
             break;
         case DGRAM_RCV_MAGIC_END:
             /* Stay in there until the magic sequence is received */
 
-            temp <<= 8U;    /* shift 1 byte to the left (to make space for the new one) */
-            temp |= input[i];
+            remote_rcv_sm.temp <<= 8U;    /* shift 1 byte to the left (to make space for the new one) */
+            remote_rcv_sm.temp |= input;
 
             err = E_OK;
 
-            if (temp == DGRAM_MAGIC_END)
+            if (remote_rcv_sm.temp == DGRAM_MAGIC_END)
             {
-                /* copy the magic number */
-                datagram_buf->datagram.magic_end = temp;
                 /* alright, datagram header synchronized! */
-                state = DGRAM_RCV_DATA;
+                remote_rcv_sm.state = DGRAM_RCV_DATA;
             }
             else
             {
@@ -190,16 +239,16 @@ e_error remote_buffer_to_datagram(uint8_t *input, uint8_t size)
             break;
         case DGRAM_RCV_DATA:
 
-            datagram_buf->data[buf_index] = input[i];
-            buf_index++;
-            if ((buf_index >= datagram_buf->datagram.len) || (buf_index >= DGRAM_RCV_DATA_MAX))
+            remote_rcv_sm.datagram_buf->data[remote_rcv_sm.buf_index] = input;
+            remote_rcv_sm.buf_index++;
+            if ((remote_rcv_sm.buf_index >= remote_rcv_sm.datagram_buf->datagram.len) || (remote_rcv_sm.buf_index >= DGRAM_RCV_DATA_MAX))
             {
                 /* data transfer completed */
-                state = DGRAM_RCV_MAGIC_START;
+                remote_rcv_sm.state = DGRAM_RCV_MAGIC_START;
                 /* set timestamp to indicate buffer slot not free and to give an order */
-                datagram_buf->timestamp = g_timestamp;
+                remote_rcv_sm.datagram_buf->timestamp = g_timestamp;
 /*                printf("*%d %d\n", buf_index, datagram_buf->datagram.len);    */
-                buf_index = 0;
+                remote_rcv_sm.buf_index = 0;
             }
             else
             {
@@ -210,18 +259,15 @@ e_error remote_buffer_to_datagram(uint8_t *input, uint8_t size)
         default:
             /* Fatal error */
             break;
-        }
-
     }
-
     return err;
 
 }
 
 bool remote_calc_crc_buffer_and_compare(uint8_t *buffer, uint8_t len, uint16_t expected_crc, uint16_t *calc_crc)
 {
+    uint16_t i;
     uint16_t crc = 0;
-    uint8_t i;
 
     for (i = 0; i < len; i++)
     {
@@ -230,8 +276,9 @@ bool remote_calc_crc_buffer_and_compare(uint8_t *buffer, uint8_t len, uint16_t e
 
     if (calc_crc != NULL) *calc_crc = crc;
 
-    if (crc != expected_crc)
+    if ((crc != expected_crc) || (len == 0U))
     {
+        /* CRC is unexpected or length is zero -> something failed */
         return false;
     }
     else

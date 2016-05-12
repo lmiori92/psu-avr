@@ -29,6 +29,7 @@
 #include <avr/interrupt.h>
 #include <avr/io.h>
 
+#include "uart.h"
 #include "system.h"
 
 /* http://www.avrfreaks.net/forum/soft-c-avrgcc-monitoring-stack-usage */
@@ -84,13 +85,13 @@ uint16_t StackCount(void)
  */
 ISR(BADISR_vect)
 {
-    printf("no ISR!\r\n");
+    uart_putstring("no ISR!\r\n");
     for(;;);
 }
 
 void system_fatal(char *str)
 {
-    printf("%s", str);
+    uart_putstring(str);
     for(;;);
 }
 

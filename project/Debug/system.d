@@ -1,3 +1,5 @@
-system.o: ../system.c ../system.h
+system.o: ../system.c ../uart.h ../system.h
+
+../uart.h:
 
 ../system.h:
