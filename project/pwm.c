@@ -31,28 +31,43 @@
 
 #include "pwm.h"
 
-#define PWM_FREQ 0x03FF // determines pwm frequency
-#define PWM_MODE 1 // Fast (1) or Phase Correct (0)
-#define PWM_QTY 2 // number of pwms, either 1 or 2
+#define PWM_FREQ        0x03FFU  /**< determines PWM frequency (15.6 kHz) */
+#define PWM_MODE        1U       /* Fast (1) or Phase Correct (0) */
 
 static t_pwm_channel pwm_channels[PWM_CHANNEL_NUM];
+
+static void pwm_config_channel(e_pwm_channel pwm_channel)
+{
+    /* Enable output and set output pins */
+
+    switch(pwm_channel)
+    {
+    case PWM_CHANNEL_0:
+        TCCR1A |= (1 << COM1A1);
+        DDRB   |= (1 << PIN1);
+        break;
+    case PWM_CHANNEL_1:
+        TCCR1A |= (1 << COM1B1);
+        DDRB   |= (1 << PIN2);
+        break;
+    case PWM_CHANNEL_2:
+        TCCR2A |= (1 << COM2A1);
+        DDRB   |= (1 << PIN3);
+        break;
+    case PWM_CHANNEL_3:
+        TCCR2A |= (1 << COM2B1);
+        DDRD   |= (1 << PIN3);
+        break;
+    default:
+        break;
+    }
+}
 
 void pwm_init(void)
 {
 
-    uint8_t i;
-
-    for (i = 0; i < (uint8_t)PWM_CHANNEL_NUM; i++)
-    {
-        /* Reset values, just in case */
-        pwm_channels[i].duty = 0;
-        pwm_channels[i].resolution = 0;
-        pwm_channels[i].channel = i;
-    }
-
-    /* PWM_0 and PWM_1: 10 bit resolution */
-
-    TCCR1A = (((PWM_QTY - 1) << 5) | 0x80 | (PWM_MODE << 1));
+    /* PWM_0 and PWM_1: 10 bit resolution, Fast PWM */
+    TCCR1A = (PWM_MODE << 1);
     TCCR1B = ((PWM_MODE << 3) | (1 << WGM13) | (1 << CS10));
     ICR1H = (PWM_FREQ >> 8);
     ICR1L = (PWM_FREQ & 0xff);
@@ -63,23 +78,22 @@ void pwm_init(void)
     /* PWM_2 and PWM_3: 8-bit resolution */
 
     /* PWM Phase Correct and Clear OCR2x on match */
-    TCCR2A = (1 << COM2A1) | (1 << COM2B1) | (1 << WGM20);//
+    TCCR2A = (1 << WGM20);
     /* set up timer with prescaler */
     TCCR2B = (0 << WGM22) | (1 << CS20);
-
-    /* Set output pins */
-    DDRB |= (1 << PIN1) | (1 << PIN2) | (1 << PIN3);
-    DDRD |= (1 << PIN3);
 
     pwm_channels[PWM_CHANNEL_2].resolution = 0xFF;
     pwm_channels[PWM_CHANNEL_3].resolution = 0xFF;
 
 }
 
+void pwm_enable_channel(e_pwm_channel pwm_channel)
+{
+    pwm_config_channel(pwm_channel);
+}
+
 void pwm_set_duty(e_pwm_channel pwm_channel, uint16_t duty)
 {
-
-    pwm_channels[pwm_channel].duty = duty;
 
     switch(pwm_channel)
     {

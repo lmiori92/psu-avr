@@ -35,6 +35,7 @@
 
 static t_display_status display_status;
 static t_display_elem   display_buffer[DISPLAY_LINE_NUM][DISPLAY_CHAR_NUM];
+static char snprintf_buf[DISPLAY_CHAR_NUM*DISPLAY_LINE_NUM];
 
 void display_init(void)
 {
@@ -128,7 +129,6 @@ void display_write_string(char *str)
     }
 }
 
-static char snprintf_buf[DISPLAY_CHAR_NUM*DISPLAY_LINE_NUM];
 void display_write_stringf(char *fmt, ...)
 {
     va_list va;

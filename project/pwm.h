@@ -41,12 +41,11 @@ typedef enum
 
 typedef struct
 {
-    e_pwm_channel channel;
     uint16_t      resolution;
-    uint16_t      duty;
 } t_pwm_channel;
 
 void pwm_init(void);
+void pwm_enable_channel(e_pwm_channel pwm_channel);
 void pwm_set_duty(e_pwm_channel pwm_channel, uint16_t duty);
 uint16_t pwm_get_resolution(e_pwm_channel channel);
 

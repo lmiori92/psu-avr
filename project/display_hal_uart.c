@@ -32,23 +32,23 @@
 #include <stdbool.h>
 #include <stdio.h>  // could be also removed and simplified
 
-void display_hal_init(void)
+void display_hal_init_DISABLED(void)
 {
     uart_putstring("\x1B[2J\x1B[H");
 }
 
-void display_hal_set_cursor(uint8_t line, uint8_t chr)
+void display_hal_set_cursor_DISABLED(uint8_t line, uint8_t chr)
 {
     /* Line 0 is 1 in UART; Line 1 is 2 in UART and so on ... */
     printf("\x1B[%d;%dH", line + 1U, chr + 1U);
 }
 
-void display_hal_write_char(uint8_t chr)
+void display_hal_write_char_DISABLED(uint8_t chr)
 {
     uart_putchar(chr, NULL);
 }
 
-void display_hal_cursor_visibility(bool visible)
+void display_hal_cursor_visibility_DISABLED(bool visible)
 {
     if (visible == false)
         uart_putstring("\x1B[?25l");

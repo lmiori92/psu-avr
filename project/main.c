@@ -412,6 +412,8 @@ static void init_io(void)
 
     /* PWM */
     pwm_init();
+    pwm_enable_channel(PWM_CHANNEL_0);
+    pwm_enable_channel(PWM_CHANNEL_1);
 
     /* System timer */
     timer_init();
@@ -530,6 +532,21 @@ static void dbg_print_values(t_psu_channel *psu_chs, uint8_t num_psu)
 }
 */
 
+/*
+psu_channels[0].voltage_setpoint.value.raw = 19856;
+observed an offset error of about 50mV
+note that the prototype breadboard does not have a separatly filtered and regulated 5V supply
+psu_channels[0].current_setpoint.value.raw = 1500;// = 2047; // observed an offset error of about 40mV
+*/
+// to-do / to analyze: 1) absolute offset calibration
+//                     2) non linear behaviour correction (do measurements)
+
+/* Encoder periodic logic */
+//uint32_t error = (uint32_t)psu_channels[0].voltage_setpoint.value.raw;
+//if (error > psu_channels[0].voltage_readout.value.scaled) error = psu_channels[0].voltage_setpoint.value.raw - psu_channels[0].voltage_readout.value.scaled;
+//else error = psu_channels[0].voltage_readout.value.scaled - psu_channels[0].voltage_setpoint.value.raw;
+
+
 int main(void)
 {
 
@@ -542,54 +559,15 @@ int main(void)
     /* Init ranges and precisions */
     init_psu(psu_channels);
 
-/*
-    channels[0].voltage_readout.value.raw = 250;
-    lib_scale(&channels[0].voltage_readout.value, &channels[0].voltage_readout.scale);
-    printf("Raw is %d and scaled is %d\r\n", channels[0].voltage_readout.value.raw, channels[0].voltage_readout.value.scaled);
-
-    channels[0].voltage_readout.value.raw = 500;
-    lib_scale(&channels[0].voltage_readout.value, &channels[0].voltage_readout.scale);
-    printf("Raw is %d and scaled is %d\r\n", channels[0].voltage_readout.value.raw, channels[0].voltage_readout.value.scaled);
-
-    channels[0].voltage_readout.value.raw = 750;
-    lib_scale(&channels[0].voltage_readout.value, &channels[0].voltage_readout.scale);
-    printf("Raw is %d and scaled is %d\r\n", channels[0].voltage_readout.value.raw, channels[0].voltage_readout.value.scaled);
-*/
-
+    /* Default state for the display */
     display_clear_all();
     display_hide_cursor();
-/*    DBG_CONFIG;   */
+
     while (1)
     {
         /* Periodic functions */
         input_processing();
 
-        /*
-        psu_channels[0].voltage_setpoint.value.raw = 19856;
-        observed an offset error of about 50mV
-        note that the prototype breadboard does not have a separatly filtered and regulated 5V supply
-        psu_channels[0].current_setpoint.value.raw = 1500;// = 2047; // observed an offset error of about 40mV
-*/
-        // to-do / to analyze: 1) absolute offset calibration
-        //                     2) non linear behaviour correction (do measurements)
-
-        /* Encoder periodic logic */
-        //uint32_t error = (uint32_t)psu_channels[0].voltage_setpoint.value.raw;
-        //if (error > psu_channels[0].voltage_readout.value.scaled) error = psu_channels[0].voltage_setpoint.value.raw - psu_channels[0].voltage_readout.value.scaled;
-        //else error = psu_channels[0].voltage_readout.value.scaled - psu_channels[0].voltage_setpoint.value.raw;
-//        printf("\x1B[2J\x1B[H");
-
-//        printf("\033[0;0H");
-//        dbg_print_values(psu_channels, PSU_CHANNEL_NUM);
-        //remote_master_send(&datagram, buffer, &psu_channels[0]);
-
-
-        /*
-        printf("\x1B[2J\x1B[H");
-        printf("%u mV", (uint32_t)psu_channels[0].voltage_setpoint.value.raw);
-        printf("(%u mV)", (uint32_t)psu_channels[0].voltage_readout.value.scaled);
-        printf("(error is %u mV)\r\n", (uint32_t)error);
-        */
 #ifdef TIMER_DEBUG
         /* Debug the timer */
         timer_debug();

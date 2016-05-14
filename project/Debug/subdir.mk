@@ -6,6 +6,7 @@
 C_SRCS += \
 ../adc.c \
 ../display.c \
+../display_hal_hd44780.c \
 ../display_hal_uart.c \
 ../encoder.c \
 ../main.c \
@@ -18,6 +19,7 @@ C_SRCS += \
 OBJS += \
 ./adc.o \
 ./display.o \
+./display_hal_hd44780.o \
 ./display_hal_uart.o \
 ./encoder.o \
 ./main.o \
@@ -30,6 +32,7 @@ OBJS += \
 C_DEPS += \
 ./adc.d \
 ./display.d \
+./display_hal_hd44780.d \
 ./display_hal_uart.d \
 ./encoder.d \
 ./main.d \
