@@ -23,6 +23,7 @@
 #include <avr/interrupt.h>
 #include <avr/delay.h>
 #include "adc.h"
+#include "display.h"
 #include "encoder.h"
 #include "pwm.h"
 #include "psu.h"
@@ -232,7 +233,7 @@ static void remote_encode_datagram(e_datatype type, t_psu_channel *channel)
     else
     {
         /* Send buffer overflow */
-        uart_putstring("send ovf\r\n");
+
     }
 }
 
@@ -403,8 +404,8 @@ static void init_io(void)
     /* UART */
     uart_init();
     uart_callback(uart_received);
-    //stdout = &uart_output;
-    //stdin  = &uart_input;
+    stdout = &uart_output;
+    stdin  = &uart_input;
 
     /* ADC */
     adc_init();
@@ -418,6 +419,9 @@ static void init_io(void)
     /* Encoder */
     encoder_init();
     encoder_set_callback(ENC_HW_0, encoder_event_callback);
+
+    /* Display */
+    display_init();
 
     sei();
 
@@ -551,8 +555,10 @@ int main(void)
     lib_scale(&channels[0].voltage_readout.value, &channels[0].voltage_readout.scale);
     printf("Raw is %d and scaled is %d\r\n", channels[0].voltage_readout.value.raw, channels[0].voltage_readout.value.scaled);
 */
-    uart_putstring("\x1B[2J\x1B[H");
 
+    display_clear_all();
+    display_hide_cursor();
+/*    DBG_CONFIG;   */
     while (1)
     {
         /* Periodic functions */
@@ -591,8 +597,15 @@ int main(void)
         /* Output processing */
         output_processing();
 
-        datagram_buffer_to_remote();
+        display_set_cursor(0, 0);
+        display_write_stringf("%d", psu_channels[0].voltage_setpoint.value.raw);
+        display_set_cursor(1, 0);
+        display_write_stringf("%d", psu_channels[1].voltage_readout.value.scaled);
 
+        /* Display handler */
+        display_periodic();
+
+        //datagram_buffer_to_remote();
     }
 
 }

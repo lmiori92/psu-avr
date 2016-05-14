@@ -5,6 +5,8 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
 ../adc.c \
+../display.c \
+../display_hal_uart.c \
 ../encoder.c \
 ../main.c \
 ../pwm.c \
@@ -15,6 +17,8 @@ C_SRCS += \
 
 OBJS += \
 ./adc.o \
+./display.o \
+./display_hal_uart.o \
 ./encoder.o \
 ./main.o \
 ./pwm.o \
@@ -25,6 +29,8 @@ OBJS += \
 
 C_DEPS += \
 ./adc.d \
+./display.d \
+./display_hal_uart.d \
 ./encoder.d \
 ./main.d \
 ./pwm.d \
@@ -38,7 +44,7 @@ C_DEPS += \
 %.o: ../%.c
 	@echo 'Building file: $<'
 	@echo 'Invoking: AVR Compiler'
-	avr-gcc -Wall -g2 -gstabs -O2 -fpack-struct -fshort-enums -ffunction-sections -fdata-sections -std=gnu99 -funsigned-char -funsigned-bitfields -mmcu=atmega328p -DF_CPU=16000000UL -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -c -o "$@" "$<"
+	avr-gcc -Wall -g2 -gstabs -Os -fpack-struct -fshort-enums -ffunction-sections -fdata-sections -std=gnu99 -funsigned-char -funsigned-bitfields -mmcu=atmega328p -DF_CPU=16000000UL -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -c -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

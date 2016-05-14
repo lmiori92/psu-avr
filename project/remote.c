@@ -176,6 +176,12 @@ bool remote_calc_crc_buffer_and_compare(uint8_t *buffer, uint8_t len, uint16_t e
     }
 }
 
+/**
+ * The execution time of this state machine shall be
+ * as short as possible and moreover it shall be well
+ * within the 100us timer time window to avoid accuracy
+ * problems
+ */
 e_error remote_buffer_to_datagram(uint8_t input)
 {
 
