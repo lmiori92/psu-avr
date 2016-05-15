@@ -45,12 +45,16 @@ void display_init(void)
 
 void display_clear(uint8_t lines)
 {
-    uint8_t i;
+    uint8_t i,j;
     for (i = 0; i < DISPLAY_LINE_NUM; i++)
     {
         if (((lines >> i) & 0x1U) == 0x1U)
         {
-            memset(display_buffer[i], (uint8_t)' ', DISPLAY_CHAR_NUM);
+            for (j = 0; j < DISPLAY_CHAR_NUM; j++)
+            {
+                display_buffer[i][j].character = (uint8_t)' ';          /* space in the current buffer */
+                display_buffer[i][j].character_prev = (uint8_t)'\0';    /* zero the previous buffer to force a complete redraw */
+            }
         }
     }
 }
@@ -107,9 +111,9 @@ void display_advance_cursor(uint8_t num)
 
 }
 
-void display_hide_cursor()
+void display_enable_cursor(bool visible)
 {
-    display_hal_cursor_visibility(false);
+    display_hal_cursor_visibility(visible);
 }
 
 void display_write_char(uint8_t chr)

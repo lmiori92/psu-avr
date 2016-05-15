@@ -532,6 +532,47 @@ static void dbg_print_values(t_psu_channel *psu_chs, uint8_t num_psu)
 }
 */
 
+static void gui_screen(void)
+{
+    /* Line 1 */
+    display_set_cursor(0, 0);
+    display_hal_write_char('C');
+    return;
+    display_hal_write_char(0x11);
+    display_hal_write_char(' ');
+    display_hal_write_char('3');
+    display_hal_write_char('.');
+    display_hal_write_char('5');
+    display_hal_write_char('4');
+    display_hal_write_char('V');
+    display_hal_write_char(' ');
+    display_hal_write_char('1');
+    display_hal_write_char('2');
+    display_hal_write_char('.');
+    display_hal_write_char('2');
+    display_hal_write_char('8');
+    display_hal_write_char('V');
+
+    /* Line 2 */
+    display_set_cursor(1, 0);
+    display_hal_write_char('H');
+    display_hal_write_char(' ');
+    display_hal_write_char('3');
+    display_hal_write_char('.');
+    display_hal_write_char('5');
+    display_hal_write_char('4');
+    display_hal_write_char('1');
+    display_hal_write_char('A');
+    display_hal_write_char(' ');
+    display_hal_write_char('1');
+    display_hal_write_char('.');
+    display_hal_write_char('2');
+    display_hal_write_char('8');
+    display_hal_write_char('3');
+    display_hal_write_char('A');
+
+}
+
 /*
 psu_channels[0].voltage_setpoint.value.raw = 19856;
 observed an offset error of about 50mV
@@ -561,7 +602,8 @@ int main(void)
 
     /* Default state for the display */
     display_clear_all();
-    display_hide_cursor();
+    display_periodic();     /* call it at least once to clear the display */
+    display_enable_cursor(false);
 
     while (1)
     {
@@ -575,10 +617,12 @@ int main(void)
         /* Output processing */
         output_processing();
 
-        display_set_cursor(0, 0);
-        display_write_stringf("%d", psu_channels[0].voltage_setpoint.value.raw);
-        display_set_cursor(1, 0);
-        display_write_stringf("%d", psu_channels[1].voltage_readout.value.scaled);
+        //display_clear(1);
+        //display_set_cursor(0, 0);
+        //display_write_stringf("%d", psu_channels[0].voltage_setpoint.value.raw);
+        //display_set_cursor(1, 0);
+        //display_write_stringf("%d", psu_channels[1].voltage_readout.value.scaled);
+        gui_screen();
 
         /* Display handler */
         display_periodic();
