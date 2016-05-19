@@ -1,3 +1,4 @@
+
 /*
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,33 +20,36 @@
 
 */
 
-#ifndef ADC_H_
-#define ADC_H_
+#ifndef _KEYPAD_H_
+#define _KEYPAD_H_
 
-/*#define ADC_NOISE_DEBUG*/
-/*#define ADC_SCOPE_DEBUG*/
+#include <stdint.h>
+#include <stdbool.h>
 
-#define ADC_RESOLUTION      1023U       // TODO get it via an ADC API
+#define DEBOUNCE_BUTTONS    20000       /**< Debounce time [us] */
 
-typedef enum _e_adc_channels
+/**< Enumeration of buttons */
+typedef enum e_buttons_
 {
-    ADC_0,
-    ADC_1,
-    ADC_2,
-    ADC_3,
-    ADC_4,
-    ADC_5,
+    BUTTON_SELECT,
 
-    ADC_NUM
-} e_adc_channel;
+    NUM_BUTTONS
+} e_key;
 
-void adc_init(void);
-uint16_t adc_get(e_adc_channel channel);
-void adc_last_capture(uint16_t *last_capture, uint16_t *adc_min, uint16_t *adc_max);
-void adc_last_reset(void);
+typedef struct
+{
 
-#ifdef ADC_SCOPE_DEBUG
-void adc_periodic(void);
-#endif
+    bool       input[NUM_BUTTONS];
+    uint32_t   debounce[NUM_BUTTONS];
+    bool       latches[NUM_BUTTONS];
+    bool       buttons[NUM_BUTTONS];
 
-#endif /* ADC_H_ */
+} t_keypad;
+
+void keypad_init(void);
+bool keypad_clicked(e_key key);
+
+void keypad_set_input(e_key key, bool value);
+void keypad_periodic(uint32_t timestamp);
+
+#endif /* _KEYPAD_H_ */

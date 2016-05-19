@@ -78,12 +78,6 @@ typedef struct
     uint8_t character_prev;
 } t_display_elem;
 
-/* Hardware Abstraction Layer */
-void display_hal_init(void);
-void display_hal_set_cursor(uint8_t line, uint8_t chr);
-void display_hal_write_char(uint8_t chr);
-void display_hal_cursor_visibility(bool visible);
-
 /* Display APIs */
 void display_init(void);
 void display_clear(uint8_t lines);
@@ -95,5 +89,6 @@ void display_advance_cursor(uint8_t num);
 void display_write_char(uint8_t chr);
 void display_write_string(char *str);
 void display_write_stringf(char *fmt, ...);
+void display_write_number(uint8_t number);
 
 #endif /* DISPLAY_H_ */

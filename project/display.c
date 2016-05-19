@@ -27,6 +27,7 @@
  */
 
 #include "display.h"
+#include "display_hal.h"
 
 #include <string.h>
 #include <stdint.h>
@@ -140,4 +141,23 @@ void display_write_stringf(char *fmt, ...)
     vsnprintf(snprintf_buf, sizeof(snprintf_buf), fmt, va);
     va_end(va);
     display_write_string(snprintf_buf);
+}
+
+void display_write_number(uint8_t number)
+{
+    /*
+    uint8_t tmp;
+    char buf[3];
+    uint8_t i = 2;
+    display_write_char(number / 100U);
+    display_write_char(number / 10U)
+    do
+    {
+        tmp = number;
+        number /= 10;
+        buf[i] = 48 + (tmp - (number * 10));
+        i--;
+    } while (number > 0U);
+    display_write_string(buf);
+    */
 }

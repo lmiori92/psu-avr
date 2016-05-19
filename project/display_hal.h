@@ -19,33 +19,22 @@
 
 */
 
-#ifndef ADC_H_
-#define ADC_H_
+/**
+ * @file display_hal.h
+ * @author Lorenzo Miori
+ * @date May 2016
+ * @brief Display HAL primitives
+ */
 
-/*#define ADC_NOISE_DEBUG*/
-/*#define ADC_SCOPE_DEBUG*/
+#ifndef DISPLAY_HAL_H_
+#define DISPLAY_HAL_H_
 
-#define ADC_RESOLUTION      1023U       // TODO get it via an ADC API
+#include <stdbool.h>
 
-typedef enum _e_adc_channels
-{
-    ADC_0,
-    ADC_1,
-    ADC_2,
-    ADC_3,
-    ADC_4,
-    ADC_5,
+/* Hardware Abstraction Layer */
+void display_hal_init(void);
+void display_hal_set_cursor(uint8_t line, uint8_t chr);
+void display_hal_write_char(uint8_t chr);
+void display_hal_cursor_visibility(bool visible);
 
-    ADC_NUM
-} e_adc_channel;
-
-void adc_init(void);
-uint16_t adc_get(e_adc_channel channel);
-void adc_last_capture(uint16_t *last_capture, uint16_t *adc_min, uint16_t *adc_max);
-void adc_last_reset(void);
-
-#ifdef ADC_SCOPE_DEBUG
-void adc_periodic(void);
-#endif
-
-#endif /* ADC_H_ */
+#endif /* DISPLAY_HAL_H_ */

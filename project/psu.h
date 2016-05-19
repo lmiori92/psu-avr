@@ -35,6 +35,12 @@ typedef uint16_t t_value_type;
 
 typedef enum
 {
+    PSU_SETPOINT_VOLTAGE,
+    PSU_SETPOINT_CURRENT,
+} e_psu_setpoint;
+
+typedef enum
+{
     PSU_STATE_PREOPERATIONAL,
     PSU_STATE_OPERATIONAL,
     PSU_STATE_SAFE_STATE
@@ -57,27 +63,21 @@ typedef struct _t_value_scale
 typedef struct _t_voltage
 {
     t_value_scale scale;
-    t_value       value;        /**< Voltage [mV] */
-} t_voltage;
-
-typedef struct _t_current
-{
-    t_value_scale scale;
-    t_value value;     /**< Current [mA] */
-} t_current;
+    t_value       value;        /**< Voltage [mV] / Current [mA] / ... */
+} t_measurement;
 
 typedef struct _t_channel
 {
     uint8_t        remote_node;             /**< 0: local node; >1: remote node monitoring */
     e_psu_state    state;                   /**< PSU Channel state */
 
-    t_voltage      voltage_setpoint;        /**< Voltage setpoint for the channel */
-    t_voltage      voltage_readout;         /**< Voltage measurement for the channel */
+    t_measurement     voltage_setpoint;        /**< Voltage setpoint for the channel */
+    t_measurement     voltage_readout;         /**< Voltage measurement for the channel */
     e_adc_channel  voltage_adc_channel;     /**< Voltage measurement ADC channel */
     e_pwm_channel  voltage_pwm_channel;     /**< Voltage output PWM channel */
 
-    t_current      current_setpoint;        /**< Current setpoint for the channel */
-    t_current      current_readout;         /**< Current measurement for the channel */
+    t_measurement      current_setpoint;        /**< Current setpoint for the channel */
+    t_measurement      current_readout;         /**< Current measurement for the channel */
     e_adc_channel  current_adc_channel;     /**< Current measurement ADC channel */
     e_pwm_channel  current_pwm_channel;     /**< Current output PWM channel */
 } t_psu_channel;

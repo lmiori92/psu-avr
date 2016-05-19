@@ -89,7 +89,16 @@ void encoder_set_callback(e_enc_hw index, t_enc_cb event_cb)
 
 ISR(PCINT0_vect)
 {
-    /* TODO generate the appropriate event */
+    /* Generate the click event */
+    if ((PINB >> PIN0) & 0x01U)
+    {
+        g_encoder[0].evt_cb(ENC_EVT_CLICK_DOWN, g_encoder[0].delta_t);
+    }
+    else
+    {
+        g_encoder[0].evt_cb(ENC_EVT_CLICK_UP, g_encoder[0].delta_t);
+    }
+
 }
 
 /**

@@ -26,6 +26,9 @@
  * @brief The ADC processing unit.
  */
 
+#ifndef _ADC_H_
+#define _ADC_H_
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stdbool.h>
@@ -225,3 +228,6 @@ long readVcc() {
   return result; // Vcc in millivolts
 }
 */
+
+#endif /* _ADC_H_ */
+

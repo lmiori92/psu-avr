@@ -9,6 +9,7 @@ C_SRCS += \
 ../display_hal_hd44780.c \
 ../display_hal_uart.c \
 ../encoder.c \
+../keypad.c \
 ../main.c \
 ../pwm.c \
 ../remote.c \
@@ -22,6 +23,7 @@ OBJS += \
 ./display_hal_hd44780.o \
 ./display_hal_uart.o \
 ./encoder.o \
+./keypad.o \
 ./main.o \
 ./pwm.o \
 ./remote.o \
@@ -35,6 +37,7 @@ C_DEPS += \
 ./display_hal_hd44780.d \
 ./display_hal_uart.d \
 ./encoder.d \
+./keypad.d \
 ./main.d \
 ./pwm.d \
 ./remote.d \

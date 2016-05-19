@@ -211,12 +211,6 @@ void display_hal_init(void)
     _delay_ms(2);
     hd44780_write_command(HD44780_RETURNHOME);
     _delay_ms(2);
-    hd44780_write_data('L');
-    hd44780_write_data('o');
-    hd44780_write_data('r');
-    hd44780_write_data('e');
-    hd44780_write_data('n');
-    hd44780_write_data('z');
 }
 
 void display_hal_set_cursor(uint8_t line, uint8_t chr)

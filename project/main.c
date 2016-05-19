@@ -25,6 +25,7 @@
 #include "adc.h"
 #include "display.h"
 #include "encoder.h"
+#include "keypad.h"
 #include "pwm.h"
 #include "psu.h"
 #include "time.h"
@@ -36,10 +37,19 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define ADC_RESOLUTION      1023U       // TODO get it via an ADC API
-
 /* GLOBALS */
 static t_psu_channel psu_channels[PSU_CHANNEL_NUM];
+
+typedef struct
+{
+    e_psu_channel  selected_psu;
+    e_psu_setpoint selected_setpoint;
+
+    t_psu_channel  *selected_psu_ptr;           /**< Keep a reference to the selected PSU for optimization in the ISR callback */
+    t_measurement  *selected_setpoint_ptr;       /**< Keep a reference to the selected PSU for optimization in the ISR callback */
+} t_application;
+
+static t_application application;
 
 /* Definitions */
 static void lib_uint16_to_bytes(uint16_t input, uint8_t *lo, uint8_t *hi);
@@ -55,6 +65,59 @@ void uart_received(uint8_t byte)
 
     /* Call the state machine with a single byte... */
     remote_buffer_to_datagram(byte);
+
+}
+
+static void psu_select_channel(e_psu_channel channel, e_psu_setpoint setpoint)
+{
+    application.selected_setpoint = setpoint;
+    application.selected_psu = channel;
+
+    /* Cache the pointers for an optimized ISR routine */
+    application.selected_psu_ptr = &psu_channels[channel];
+    switch (setpoint)
+    {
+    case PSU_SETPOINT_CURRENT:
+        application.selected_setpoint_ptr = &psu_channels[channel].current_setpoint;
+        break;
+    case PSU_SETPOINT_VOLTAGE:
+        application.selected_setpoint_ptr = &psu_channels[channel].voltage_setpoint;
+        break;
+    }
+
+}
+
+static void psu_advance_selection(void)
+{
+    e_psu_channel ch = application.selected_psu;
+    e_psu_setpoint sp = application.selected_setpoint;
+
+    switch (application.selected_setpoint)
+    {
+    case PSU_SETPOINT_VOLTAGE:
+        sp = PSU_SETPOINT_CURRENT;
+        break;
+    case PSU_SETPOINT_CURRENT:
+        /* Switch to the other channel */
+        switch (ch)
+        {
+        case PSU_CHANNEL_0:
+            ch = PSU_CHANNEL_1;
+            break;
+        case PSU_CHANNEL_1:
+            ch = PSU_CHANNEL_0;
+            break;
+        default:
+            ch = PSU_CHANNEL_0;
+            break;
+        }
+
+        sp = PSU_SETPOINT_VOLTAGE;
+
+        break;
+    }
+
+    psu_select_channel(ch, sp);
 
 }
 
@@ -288,17 +351,17 @@ void lib_limit(t_value *value, t_value_scale *scale)
 
 void lib_scale(t_value *value, t_value_scale *scale)
 {
-    t_value_type temp;
-    float range_ratio = ((float)scale->max_scaled - scale->min_scaled) / ((float)scale->max - scale->min);
+    uint32_t temp;
 
     /* Remove the min value from the raw value */
-    temp = value->raw - scale->min;
-    /* Multiply the raw value by the ratio between the destination range and the origin range */
-    temp = (float)temp * range_ratio;
-    /* Offset the value by the min scaled value */
-    temp += scale->min_scaled;
+    temp = scale->max_scaled - scale->min_scaled;
+    temp *= (value->raw - scale->min);
+    /* Divide the raw value by the the destination range */
+    temp /= (scale->max - scale->min);
     /* Assign the value to the output */
-    value->scaled = (t_value_type)temp;
+    value->scaled = temp;
+    /* Offset the value by the min scaled value */
+    value->scaled += scale->min_scaled;
 }
 
 static void init_channel(t_psu_channel *channel, e_psu_channel psu_ch)
@@ -341,7 +404,7 @@ static void init_channel(t_psu_channel *channel, e_psu_channel psu_ch)
     channel->voltage_setpoint.scale.max_scaled = pwm_get_resolution(channel->voltage_pwm_channel);
 
     channel->current_setpoint.scale.min = 0;
-    channel->current_setpoint.scale.max = 28500;
+    channel->current_setpoint.scale.max = 2048;
     channel->current_setpoint.scale.min_scaled = 0;
     channel->current_setpoint.scale.max_scaled = pwm_get_resolution(channel->current_pwm_channel);
 
@@ -356,6 +419,9 @@ static void init_psu(t_psu_channel *channel)
     {
         init_channel(&channel[i], (e_psu_channel)i);
     }
+
+    /* Start with a known selection */
+    psu_select_channel(PSU_CHANNEL_0, PSU_SETPOINT_VOLTAGE);
 
 }
 
@@ -378,20 +444,34 @@ static void encoder_event_callback(e_enc_event event, uint32_t delta_t)
 {
     uint8_t i;
     uint16_t diff;
-    for (i = 0; i < SMOOTHING_SIZE; i++)
+    if (event == ENC_EVT_CLICK_DOWN)
     {
-        if (delta_t >= smoothing_deltat[i])
+        /* Click event */
+        keypad_set_input(BUTTON_SELECT, true);
+    }
+    else if (event == ENC_EVT_CLICK_UP)
+    {
+        /* Release event */
+        keypad_set_input(BUTTON_SELECT, false);
+    }
+    else
+    {
+        /* Rotation event */
+        for (i = 0; i < SMOOTHING_SIZE; i++)
         {
-            diff = smoothing_result[i];
-            if (event == ENC_EVT_LEFT)
+            if (delta_t >= smoothing_deltat[i])
             {
-                lib_diff(&psu_channels[PSU_CHANNEL_0].voltage_setpoint.value.raw, diff);
+                diff = smoothing_result[i];
+                if (event == ENC_EVT_LEFT)
+                {
+                    lib_diff(&application.selected_setpoint_ptr->value.raw, diff);
+                }
+                else if (event == ENC_EVT_RIGHT)
+                {
+                    lib_sum(&application.selected_setpoint_ptr->value.raw, application.selected_setpoint_ptr->scale.max, diff);
+                }
+                break;
             }
-            else if (event == ENC_EVT_RIGHT)
-            {
-                lib_sum(&psu_channels[PSU_CHANNEL_0].voltage_setpoint.value.raw, psu_channels[PSU_CHANNEL_0].voltage_setpoint.scale.max, diff);
-            }
-            break;
         }
     }
 }
@@ -424,6 +504,9 @@ static void init_io(void)
 
     /* Display */
     display_init();
+
+    /* Keypad */
+    keypad_init();
 
     sei();
 
@@ -492,6 +575,9 @@ static void input_processing(void)
 
     }
 
+    /* Keypad */
+    keypad_periodic(g_timestamp);
+
 }
 
 static void output_processing(void)
@@ -516,60 +602,74 @@ static void output_processing(void)
     }
 
 }
-/*
-static void dbg_print_values(t_psu_channel *psu_chs, uint8_t num_psu)
-{
-    uint8_t i = 0;
 
-    for (i = 0; i < num_psu; i++)
+static void gui_print_measurement(e_psu_setpoint type, uint16_t value, bool selected)
+{
+
+    static const char *digit_to_char = "0123456789";
+
+    if (selected == true)
     {
-        printf("PSU CH-%d\r\n", i);
-        printf("%u mV", psu_chs[i].voltage_setpoint.value.raw);
-        printf(" (%u)\r\n", psu_chs[i].voltage_setpoint.value.scaled);
-        printf("%u mV", psu_chs[i].current_setpoint.value.raw);
-        printf(" (%u)\r\n", psu_chs[i].current_setpoint.value.scaled);
+        display_write_char(0x7E);
     }
+    else
+    {
+        display_write_char(' ');
+    }
+
+
+    if (type == PSU_SETPOINT_VOLTAGE)
+    {
+        /* Display 10s */
+        display_write_char(digit_to_char[(value / 10000) % 10]);
+    }
+    else
+    {
+        /* No 10s */
+    }
+
+    display_write_char(digit_to_char[(value / 1000) % 10]);
+    display_write_char('.');
+
+    switch(type)
+    {
+    case PSU_SETPOINT_VOLTAGE:
+        display_write_char(digit_to_char[(value / 100) % 10]);
+        display_write_char(digit_to_char[(value / 10) % 10]);
+        display_write_char('V');
+        break;
+    case PSU_SETPOINT_CURRENT:
+        display_write_char(digit_to_char[(value / 100) % 10]);
+        display_write_char(digit_to_char[(value / 10) % 10]);
+        display_write_char(digit_to_char[value % 10]);
+        display_write_char('A');
+        break;
+    }
+
 }
-*/
 
 static void gui_screen(void)
 {
+    bool selected;
     /* Line 1 */
     display_set_cursor(0, 0);
-    display_hal_write_char('C');
-    return;
-    display_hal_write_char(0x11);
-    display_hal_write_char(' ');
-    display_hal_write_char('3');
-    display_hal_write_char('.');
-    display_hal_write_char('5');
-    display_hal_write_char('4');
-    display_hal_write_char('V');
-    display_hal_write_char(' ');
-    display_hal_write_char('1');
-    display_hal_write_char('2');
-    display_hal_write_char('.');
-    display_hal_write_char('2');
-    display_hal_write_char('8');
-    display_hal_write_char('V');
+    display_write_char('V');
+
+    selected = (application.selected_psu == PSU_CHANNEL_0 && application.selected_setpoint == PSU_SETPOINT_VOLTAGE) ? true : false;
+    gui_print_measurement(PSU_SETPOINT_VOLTAGE, psu_channels[PSU_CHANNEL_0].voltage_setpoint.value.raw, selected);
+
+    selected = (application.selected_psu == PSU_CHANNEL_1 && application.selected_setpoint == PSU_SETPOINT_VOLTAGE) ? true : false;
+    gui_print_measurement(PSU_SETPOINT_VOLTAGE, psu_channels[PSU_CHANNEL_1].voltage_setpoint.value.raw, selected);
 
     /* Line 2 */
     display_set_cursor(1, 0);
-    display_hal_write_char('H');
-    display_hal_write_char(' ');
-    display_hal_write_char('3');
-    display_hal_write_char('.');
-    display_hal_write_char('5');
-    display_hal_write_char('4');
-    display_hal_write_char('1');
-    display_hal_write_char('A');
-    display_hal_write_char(' ');
-    display_hal_write_char('1');
-    display_hal_write_char('.');
-    display_hal_write_char('2');
-    display_hal_write_char('8');
-    display_hal_write_char('3');
-    display_hal_write_char('A');
+    display_write_char('I');
+
+    selected = (application.selected_psu == PSU_CHANNEL_0 && application.selected_setpoint == PSU_SETPOINT_CURRENT) ? true : false;
+    gui_print_measurement(PSU_SETPOINT_CURRENT, psu_channels[PSU_CHANNEL_0].current_setpoint.value.raw, selected);
+
+    selected = (application.selected_psu == PSU_CHANNEL_1 && application.selected_setpoint == PSU_SETPOINT_CURRENT) ? true : false;
+    gui_print_measurement(PSU_SETPOINT_CURRENT, psu_channels[PSU_CHANNEL_1].current_setpoint.value.raw, selected);
 
 }
 
@@ -581,12 +681,6 @@ psu_channels[0].current_setpoint.value.raw = 1500;// = 2047; // observed an offs
 */
 // to-do / to analyze: 1) absolute offset calibration
 //                     2) non linear behaviour correction (do measurements)
-
-/* Encoder periodic logic */
-//uint32_t error = (uint32_t)psu_channels[0].voltage_setpoint.value.raw;
-//if (error > psu_channels[0].voltage_readout.value.scaled) error = psu_channels[0].voltage_setpoint.value.raw - psu_channels[0].voltage_readout.value.scaled;
-//else error = psu_channels[0].voltage_readout.value.scaled - psu_channels[0].voltage_setpoint.value.raw;
-
 
 int main(void)
 {
@@ -610,24 +704,26 @@ int main(void)
         /* Periodic functions */
         input_processing();
 
-#ifdef TIMER_DEBUG
-        /* Debug the timer */
-        timer_debug();
-#endif
+        if (keypad_clicked(BUTTON_SELECT) == true)
+        {
+            psu_advance_selection();
+        }
+
         /* Output processing */
         output_processing();
 
-        //display_clear(1);
-        //display_set_cursor(0, 0);
-        //display_write_stringf("%d", psu_channels[0].voltage_setpoint.value.raw);
-        //display_set_cursor(1, 0);
-        //display_write_stringf("%d", psu_channels[1].voltage_readout.value.scaled);
+        /* GUI */
         gui_screen();
 
         /* Display handler */
         display_periodic();
 
         //datagram_buffer_to_remote();
+
+#ifdef TIMER_DEBUG
+        /* Debug the timer */
+        timer_debug();
+#endif
     }
 
 }
