@@ -89,6 +89,5 @@ void display_advance_cursor(uint8_t num);
 void display_write_char(uint8_t chr);
 void display_write_string(char *str);
 void display_write_stringf(char *fmt, ...);
-void display_write_number(uint8_t number);
 
 #endif /* DISPLAY_H_ */

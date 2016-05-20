@@ -30,7 +30,6 @@
 #include "uart.h"
 
 #include <stdbool.h>
-#include <stdio.h>  // could be also removed and simplified
 
 void display_hal_init_DISABLED(void)
 {
@@ -39,8 +38,19 @@ void display_hal_init_DISABLED(void)
 
 void display_hal_set_cursor_DISABLED(uint8_t line, uint8_t chr)
 {
-    /* Line 0 is 1 in UART; Line 1 is 2 in UART and so on ... */
-    printf("\x1B[%d;%dH", line + 1U, chr + 1U);
+    /* Line 0 is 1 in UART; Line 1 is 2 in UART and so on ...
+     * Avoid using printf, hence a simple switch */
+    switch(line)
+    {
+    case 0:
+        uart_putstring("\x1B[1;1H");
+        break;
+    case 1:
+    default:
+        uart_putstring("\x1B[2;2H");
+        break;
+    }
+
 }
 
 void display_hal_write_char_DISABLED(uint8_t chr)

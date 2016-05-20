@@ -10,6 +10,7 @@ C_SRCS += \
 ../display_hal_uart.c \
 ../encoder.c \
 ../keypad.c \
+../lib.c \
 ../main.c \
 ../pwm.c \
 ../remote.c \
@@ -24,6 +25,7 @@ OBJS += \
 ./display_hal_uart.o \
 ./encoder.o \
 ./keypad.o \
+./lib.o \
 ./main.o \
 ./pwm.o \
 ./remote.o \
@@ -38,6 +40,7 @@ C_DEPS += \
 ./display_hal_uart.d \
 ./encoder.d \
 ./keypad.d \
+./lib.d \
 ./main.d \
 ./pwm.d \
 ./remote.d \

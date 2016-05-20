@@ -34,6 +34,8 @@
 
 #include <stdio.h>  /* printf-like facility */
 
+/*#define DISPLAY_HAS_PRINTF*/
+
 static t_display_status display_status;
 static t_display_elem   display_buffer[DISPLAY_LINE_NUM][DISPLAY_CHAR_NUM];
 static char snprintf_buf[DISPLAY_CHAR_NUM*DISPLAY_LINE_NUM];
@@ -136,28 +138,13 @@ void display_write_string(char *str)
 
 void display_write_stringf(char *fmt, ...)
 {
+#ifdef DISPLAY_HAS_PRINTF
     va_list va;
     va_start(va,fmt);
     vsnprintf(snprintf_buf, sizeof(snprintf_buf), fmt, va);
     va_end(va);
     display_write_string(snprintf_buf);
-}
-
-void display_write_number(uint8_t number)
-{
-    /*
-    uint8_t tmp;
-    char buf[3];
-    uint8_t i = 2;
-    display_write_char(number / 100U);
-    display_write_char(number / 10U)
-    do
-    {
-        tmp = number;
-        number /= 10;
-        buf[i] = 48 + (tmp - (number * 10));
-        i--;
-    } while (number > 0U);
-    display_write_string(buf);
-    */
+#else
+    (void)fmt;
+#endif
 }

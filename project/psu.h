@@ -29,9 +29,9 @@
 #ifndef PSU_H_
 #define PSU_H_
 
-#include <stdint.h>
+#include "lib.h"
 
-typedef uint16_t t_value_type;
+#include <stdint.h>
 
 typedef enum
 {
@@ -45,20 +45,6 @@ typedef enum
     PSU_STATE_OPERATIONAL,
     PSU_STATE_SAFE_STATE
 } e_psu_state;
-
-typedef struct
-{
-    t_value_type raw;
-    t_value_type scaled;
-} t_value;
-
-typedef struct _t_value_scale
-{
-    t_value_type min;
-    t_value_type max;
-    t_value_type min_scaled;
-    t_value_type max_scaled;
-} t_value_scale;
 
 typedef struct _t_voltage
 {

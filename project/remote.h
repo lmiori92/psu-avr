@@ -34,10 +34,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define DGRAM_MAGIC_START             0xC0FFEE00UL
-#define DGRAM_MAGIC_END               0xDEADBEEFUL
+#define DGRAM_MASTER_NODE_ID          0U
 
-#define DGRAM_RCV_DATA_MAX      16U
+#define DGRAM_MAGIC_START_RX          0xC0FFEE00UL
+#define DGRAM_MAGIC_END_RX            0xDEADBEEFUL
+#define DGRAM_MAGIC_START             0x00EEFFC0UL
+#define DGRAM_MAGIC_END               0xEFBEADDEUL
+
+#define DGRAM_RCV_DATA_MAX      20U
 #define DGRAM_RCV_TIMEOUT_US    1000000U
 #define DGRAM_RCV_BUFFER_LEN    5U          /**< Adjust me if out of RAM :-) */
 #define DGRAM_SND_BUFFER_LEN    5U          /**< Adjust me if out of RAM :-) */

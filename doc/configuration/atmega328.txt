@@ -6,7 +6,7 @@ In order to correctly run this project everything SHALL be configured as is.
 FUSES
 #####
 
-lorenzo@lorenzo-notebook:~$ avrdude -patmega328p -c usbasp
+lorenzo@lorenzo-notebook:~$ avrdude -p atmega328p -c usbasp
 
 avrdude: set SCK frequency to 93750 Hz
 avrdude: AVR device initialized and ready to accept instructions
@@ -15,9 +15,9 @@ Reading | ################################################## | 100% 0.01s
 
 avrdude: Device signature = 0x1e950f
 
-avrdude: safemode: Fuses OK (E:04, H:DE, L:FF)
+avrdude: safemode: Fuses OK (E:05, H:DE, L:FF)
 
-avrdude done.  Thank you.
+(To set the Extended one : avrdude -p atmega328p -c usbasp -U efuse:w:0x05:m)
 
 ###############
 CLOCK & SUPPLY

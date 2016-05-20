@@ -28,17 +28,18 @@
 
 #include "error.h"
 #include "remote.h"
-#include "time.h"   /* g_s_timestamp (maybe try to generalize and design without this contraint) */
+#include "time.h"    /* g_s_timestamp (maybe try to generalize and design without this contraint) */
+#include "uart.h"    /* UART primitives */
 
 #include <util/crc16.h>
-#include <util/atomic.h>
+#include <util/atomic.h>    /* cli() and sei() */
 
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
-#define REMOTE_ENTER_CRITICAL_SECTION       cli()   /**< Call it when handling a shared environment */
-#define REMOTE_EXIT_CRITICAL_SECTION        sei()   /**< Call it when done handling a shared environment */
+#define REMOTE_ENTER_CRITICAL_SECTION       cli()   /**< Call it when handling a shared variable */
+#define REMOTE_EXIT_CRITICAL_SECTION        sei()   /**< Call it when done handling a shared variable */
 
 static t_remote_receive_state_machine remote_rcv_sm =
 {
@@ -58,7 +59,19 @@ e_error remote_datagram_to_buffer(t_remote_datagram *datagram, uint8_t *buffer, 
     if (size >= sizeof(t_remote_datagram))
     {
         /* enough large buffer */
-        memcpy(&datagram[0], &buffer, sizeof(t_remote_datagram));
+        (void)memcpy(buffer, datagram, sizeof(t_remote_datagram));
+        /*
+        lib_uint32_to_bytes(datagram->magic_start, buffer, buffer + 1, buffer + 2, buffer + 3);
+        buffer+=4;
+        *buffer = datagram->node_id;
+        buffer++;
+        *buffer = datagram->len;
+        buffer++;
+        lib_uint16_to_bytes(datagram->crc, buffer, buffer + 1);
+        buffer+=2;
+        lib_uint32_to_bytes(datagram->magic_end, buffer, buffer + 1, buffer + 2, buffer + 3);
+        buffer+=4;
+        */
         return E_OK;
     }
     else
@@ -213,7 +226,7 @@ e_error remote_buffer_to_datagram(uint8_t input)
             remote_rcv_sm.temp <<= 8U;    /* shift 1 byte to the left (to make space for the new one) */
             remote_rcv_sm.temp |= input;
 
-            if (remote_rcv_sm.temp == DGRAM_MAGIC_START)
+            if (remote_rcv_sm.temp == DGRAM_MAGIC_START_RX)
             {
                 /* new datagram is incoming: allocate a buffer slot, if possible */
                 remote_receive_buffer_alloc(&remote_rcv_sm.datagram_buf);
@@ -265,7 +278,7 @@ e_error remote_buffer_to_datagram(uint8_t input)
 
             err = E_OK;
 
-            if (remote_rcv_sm.temp == DGRAM_MAGIC_END)
+            if (remote_rcv_sm.temp == DGRAM_MAGIC_END_RX)
             {
                 /* alright, datagram header synchronized! */
                 remote_rcv_sm.state = DGRAM_RCV_DATA;

@@ -25,6 +25,7 @@
 #include "adc.h"
 #include "display.h"
 #include "encoder.h"
+#include "lib.h"
 #include "keypad.h"
 #include "pwm.h"
 #include "psu.h"
@@ -46,14 +47,12 @@ typedef struct
     e_psu_setpoint selected_setpoint;
 
     t_psu_channel  *selected_psu_ptr;           /**< Keep a reference to the selected PSU for optimization in the ISR callback */
-    t_measurement  *selected_setpoint_ptr;       /**< Keep a reference to the selected PSU for optimization in the ISR callback */
+    t_measurement  *selected_setpoint_ptr;      /**< Keep a reference to the selected PSU for optimization in the ISR callback */
+
+    bool           master_or_slave;             /**< True: is a master; False: is a slave */
 } t_application;
 
 static t_application application;
-
-/* Definitions */
-static void lib_uint16_to_bytes(uint16_t input, uint8_t *lo, uint8_t *hi);
-static uint16_t lib_bytes_to_uint16(uint8_t lo, uint8_t hi);
 
 /* Remote application level buffers */
 static t_remote_datagram_buffer remote_dgram_rcv_copy;
@@ -128,7 +127,7 @@ static void remote_encode_setpoint(t_remote_datagram_buffer *datagram, t_psu_cha
     datagram->datagram.magic_start = DGRAM_MAGIC_START;
     datagram->datagram.magic_end   = DGRAM_MAGIC_END;
 
-    /* "Serialize" data (not really, it only works on the same architecture) */
+    /* Serialize data */
 
     /* Datatype */
     datagram->data[0] = DATATYPE_SETPOINTS;
@@ -145,6 +144,17 @@ static void remote_encode_setpoint(t_remote_datagram_buffer *datagram, t_psu_cha
 
 }
 
+static void remote_decode_setpoint(t_remote_datagram_buffer *datagram, t_psu_channel *channel)
+{
+    if ((datagram != NULL) && (channel != NULL) && (datagram->datagram.len >= 5U))
+    {
+        /* Voltage setpoint for the remote channel */
+        channel->voltage_setpoint.value.raw = lib_bytes_to_uint16(datagram->data[1], datagram->data[2]);
+        /* Current setpoint for the remote channel */
+        channel->current_setpoint.value.raw = lib_bytes_to_uint16(datagram->data[3], datagram->data[4]);
+    }
+}
+
 static void remote_encode_readout(t_remote_datagram_buffer *datagram, t_psu_channel *channel)
 {
 
@@ -152,7 +162,7 @@ static void remote_encode_readout(t_remote_datagram_buffer *datagram, t_psu_chan
     datagram->datagram.magic_start = DGRAM_MAGIC_START;
     datagram->datagram.magic_end   = DGRAM_MAGIC_END;
 
-    /* "Serialize" data (not really, it only works on the same architecture) */
+    /* Serialize data */
 
     /* Datatype */
     datagram->data[0] = DATATYPE_READOUTS;
@@ -173,9 +183,9 @@ static void remote_decode_readout(t_remote_datagram_buffer *datagram, t_psu_chan
 {
     if ((datagram != NULL) && (channel != NULL) && (datagram->datagram.len >= 5U))
     {
-        /* Voltage setpoint for the remote channel */
+        /* Voltage measurement for the remote channel */
         channel->voltage_readout.value.raw = lib_bytes_to_uint16(datagram->data[1], datagram->data[2]);
-        /* Current setpoint for the remote channel */
+        /* Current measurement for the remote channel */
         channel->current_readout.value.raw = lib_bytes_to_uint16(datagram->data[3], datagram->data[4]);
     }
 }
@@ -184,15 +194,56 @@ static void remote_encode_config(t_remote_datagram_buffer *datagram, t_psu_chann
 {
     if ((datagram != NULL) && (channel != NULL))
     {
-        /* STUB */
+        datagram->datagram.node_id     = channel->remote_node;
+        datagram->datagram.magic_start = DGRAM_MAGIC_START;
+        datagram->datagram.magic_end   = DGRAM_MAGIC_END;
+
+        /* Serialize data */
+
+        /* Datatype */
+        datagram->data[0] = DATATYPE_CONFIG;
+        /* ADC voltage resolution */
+        lib_uint16_to_bytes(channel->voltage_readout.scale.max, &datagram->data[1], &datagram->data[2]);
+        /* ADC current resolution */
+        lib_uint16_to_bytes(channel->current_readout.scale.max, &datagram->data[3], &datagram->data[4]);
+
+        /* Voltage scaled maximum */
+        lib_uint16_to_bytes(channel->voltage_readout.scale.max_scaled, &datagram->data[5], &datagram->data[6]);
+        /* Current scaled maximum */
+        lib_uint16_to_bytes(channel->current_readout.scale.max_scaled, &datagram->data[7], &datagram->data[8]);
+
+        /* PWM voltage resolution */
+        lib_uint16_to_bytes(channel->voltage_setpoint.scale.max, &datagram->data[9], &datagram->data[10]);
+        /* PWM current resolution */
+        lib_uint16_to_bytes(channel->current_setpoint.scale.max, &datagram->data[11], &datagram->data[12]);
+
+        /* PWM Voltage scaled maximum */
+        lib_uint16_to_bytes(channel->voltage_setpoint.scale.max_scaled, &datagram->data[13], &datagram->data[14]);
+        /* PWM Current scaled maximum */
+        lib_uint16_to_bytes(channel->current_setpoint.scale.max_scaled, &datagram->data[15], &datagram->data[16]);
+
+        /* set byte length */
+        datagram->datagram.len         = 17U;
+
+        /* Calc the CRC */
+        (void)remote_calc_crc_buffer_and_compare(datagram->data, datagram->datagram.len, 0U, &datagram->datagram.crc);
     }
 }
 
 static void remote_decode_config(t_remote_datagram_buffer *datagram, t_psu_channel *channel)
 {
-    if ((datagram != NULL) && (channel != NULL))
+    if ((datagram != NULL) && (channel != NULL) && (datagram->datagram.len >= 17U))
     {
-        /* STUB */
+
+        channel->voltage_readout.scale.max = lib_bytes_to_uint16(datagram->data[1], datagram->data[2]);
+        channel->current_readout.scale.max = lib_bytes_to_uint16(datagram->data[3], datagram->data[4]);
+        channel->voltage_readout.scale.max_scaled = lib_bytes_to_uint16(datagram->data[5], datagram->data[6]);
+        channel->current_readout.scale.max_scaled = lib_bytes_to_uint16(datagram->data[7], datagram->data[8]);
+        channel->voltage_setpoint.scale.max = lib_bytes_to_uint16(datagram->data[9], datagram->data[10]);
+        channel->current_setpoint.scale.max = lib_bytes_to_uint16(datagram->data[11], datagram->data[12]);
+        channel->voltage_setpoint.scale.max_scaled = lib_bytes_to_uint16(datagram->data[13], datagram->data[14]);
+        channel->current_setpoint.scale.max_scaled = lib_bytes_to_uint16(datagram->data[15], datagram->data[16]);
+
         /* Config received, set to operational */
         channel->state = PSU_STATE_OPERATIONAL;
     }
@@ -237,8 +288,8 @@ static void remote_decode_datagram(void)
                 {
                 case DATAYPE_DEBUG:
                     /* debug data (usually a string) */
-                    uart_putstring(remote_dgram_rcv_copy.data);
-                    uart_putstring("\r\n");
+                    //uart_putstring(remote_dgram_rcv_copy.data);
+                    //uart_putstring("\r\n");
                     break;
                 case DATATYPE_CONFIG:
                     /* config data */
@@ -250,6 +301,7 @@ static void remote_decode_datagram(void)
                     break;
                 case DATATYPE_SETPOINTS:
                     /* setpoints data */
+                    remote_decode_setpoint(&remote_dgram_rcv_copy, psu_get_channel_from_node_id(remote_dgram_rcv_copy.datagram.node_id));
                     break;
                 default:
                     break;
@@ -285,6 +337,7 @@ static void remote_encode_datagram(e_datatype type, t_psu_channel *channel)
             break;
         case DATATYPE_SETPOINTS:
             /* setpoints data */
+            remote_encode_setpoint(rem_buf, channel);
             break;
         default:
             break;
@@ -300,84 +353,42 @@ static void remote_encode_datagram(e_datatype type, t_psu_channel *channel)
     }
 }
 
-static void lib_uint32_to_bytes(uint32_t input, uint8_t *lo, uint8_t *milo, uint8_t *hilo, uint8_t *hi)
-{
-    *lo   = (uint8_t)input;
-    *milo = (uint8_t)(input >> 8U);
-    *hilo = (uint8_t)(input >> 16U);
-    *hi   = (uint8_t)(input >> 16U);
-}
-
-static void lib_uint16_to_bytes(uint16_t input, uint8_t *lo, uint8_t *hi)
-{
-    *lo   = (uint8_t)input;
-    *hi = (uint8_t)(input >> 8U);
-}
-
-static uint16_t lib_bytes_to_uint16(uint8_t lo, uint8_t hi)
-{
-    uint16_t output;
-    output  = (uint8_t)lo;
-    output |= (uint8_t)(hi << 8U);
-    return output;
-}
-
-void lib_sum(uint16_t *value, uint16_t limit, uint16_t diff)
-{
-    if (limit < *value)
-    {
-        *value = limit;
-    }
-    else
-    {
-        if ((limit - *value) > diff) *value  += diff;
-        else                          *value  = limit;
-    }
-}
-
-void lib_diff(uint16_t *value, uint16_t diff)
-{
-    if (*value > diff) *value -= diff;
-    else               *value  = 0;
-}
-
-void lib_limit(t_value *value, t_value_scale *scale)
-{
-    /* bottom filter */
-    if (value->raw < scale->min) value->scaled = scale->min;
-    /* top filter */
-    if (value->raw > scale->max) value->scaled = scale->max;
-}
-
-void lib_scale(t_value *value, t_value_scale *scale)
-{
-    uint32_t temp;
-
-    /* Remove the min value from the raw value */
-    temp = scale->max_scaled - scale->min_scaled;
-    temp *= (value->raw - scale->min);
-    /* Divide the raw value by the the destination range */
-    temp /= (scale->max - scale->min);
-    /* Assign the value to the output */
-    value->scaled = temp;
-    /* Offset the value by the min scaled value */
-    value->scaled += scale->min_scaled;
-}
-
-static void init_channel(t_psu_channel *channel, e_psu_channel psu_ch)
+static void init_psu_channel(t_psu_channel *channel, e_psu_channel psu_ch, bool master_or_slave)
 {
 
     switch(psu_ch)
     {
         case PSU_CHANNEL_0:
-            channel->remote_node         = 0U;
+            /* Local node -> immediately set to operational */
+            channel->state               = PSU_STATE_OPERATIONAL;
             channel->voltage_adc_channel = ADC_0;
             channel->current_adc_channel = ADC_1;
             channel->voltage_pwm_channel = PWM_CHANNEL_0;
             channel->current_pwm_channel = PWM_CHANNEL_1;
+            if (master_or_slave == false)
+            {
+                /* If this is a slave */
+                channel->remote_node         = 1U;
+            }
+            else
+            {
+                /* If this is a master */
+                channel->remote_node         = 0U;
+                /* it is a master node; nothing to send */
+            }
             break;
         case PSU_CHANNEL_1:
-            channel->remote_node         = 1U;
+            if (master_or_slave == true)
+            {
+                /* Remote node -> set to preoperational */
+                channel->remote_node         = 1U;
+            }
+            else
+            {
+                /* unused */
+                channel->remote_node         = 2U;
+            }
+            channel->state               = PSU_STATE_PREOPERATIONAL;
             channel->voltage_adc_channel = ADC_2;
             channel->current_adc_channel = ADC_3;
             channel->voltage_pwm_channel = PWM_CHANNEL_2;
@@ -407,17 +418,23 @@ static void init_channel(t_psu_channel *channel, e_psu_channel psu_ch)
     channel->current_setpoint.scale.max = 2048;
     channel->current_setpoint.scale.min_scaled = 0;
     channel->current_setpoint.scale.max_scaled = pwm_get_resolution(channel->current_pwm_channel);
-
+if ((master_or_slave == false) && psu_ch == PSU_CHANNEL_0)
+{
+    // TODO test  onlz
+    channel->voltage_setpoint.scale.max = 12345;
+/* If this is the channel of a slave send the config datagram */
+remote_encode_datagram(DATATYPE_CONFIG, channel);
+}
 }
 
-static void init_psu(t_psu_channel *channel)
+static void init_psu(void)
 {
 
     uint8_t i;
 
     for (i = 0; i < (uint8_t)PSU_CHANNEL_NUM; i++)
     {
-        init_channel(&channel[i], (e_psu_channel)i);
+        init_psu_channel(&psu_channels[i], (e_psu_channel)i, application.master_or_slave);
     }
 
     /* Start with a known selection */
@@ -481,11 +498,17 @@ static void init_io(void)
 
     cli();
 
+    /* CODING PIN (MASTER/SLAVE) */
+    CODING_CONFIG;
+
+    /* Read the coding pin to understand if master or slave */
+    application.master_or_slave = !!CODING_READ;
+
     /* UART */
     uart_init();
     uart_callback(uart_received);
     stdout = &uart_output;
-    stdin  = &uart_input;
+    /*stdin  = &uart_input;*/
 
     /* ADC */
     adc_init();
@@ -586,18 +609,21 @@ static void output_processing(void)
 
     for (i = 0; i < (uint8_t)PSU_CHANNEL_NUM; i++)
     {
-        /* Pre-processing (scaling) of the values */
-        psu_preprocessing(&psu_channels[i]);
+        if (psu_channels[i].state != PSU_STATE_PREOPERATIONAL)
+        {
+            /* Pre-processing (scaling) of the values */
+            psu_preprocessing(&psu_channels[i]);
 
-        if (psu_channels[i].remote_node == 0U)
-        {
-            /* Local channel */
-            pwm_processing(&psu_channels[i]);
-        }
-        else
-        {
-            /* Slave(s)<->Master communication takes care of that */
-            remote_encode_datagram(DATATYPE_SETPOINTS, &psu_channels[0]);
+            if (psu_channels[i].remote_node == 0U)
+            {
+                /* Local channel */
+                pwm_processing(&psu_channels[i]);
+            }
+            else
+            {
+                /* Slave(s)<->Master communication takes care of that */
+                //remote_encode_datagram(DATATYPE_SETPOINTS, &psu_channels[0]);
+            }
         }
     }
 
@@ -651,6 +677,12 @@ static void gui_print_measurement(e_psu_setpoint type, uint16_t value, bool sele
 static void gui_screen(void)
 {
     bool selected;
+
+    if (keypad_clicked(BUTTON_SELECT) == true)
+    {
+        psu_advance_selection();
+    }
+
     /* Line 1 */
     display_set_cursor(0, 0);
     display_write_char('V');
@@ -660,7 +692,7 @@ static void gui_screen(void)
 
     selected = (application.selected_psu == PSU_CHANNEL_1 && application.selected_setpoint == PSU_SETPOINT_VOLTAGE) ? true : false;
     gui_print_measurement(PSU_SETPOINT_VOLTAGE, psu_channels[PSU_CHANNEL_1].voltage_setpoint.value.raw, selected);
-
+    display_write_char(psu_channels[PSU_CHANNEL_0].state == PSU_STATE_OPERATIONAL ? '1' : '0');
     /* Line 2 */
     display_set_cursor(1, 0);
     display_write_char('I');
@@ -670,7 +702,7 @@ static void gui_screen(void)
 
     selected = (application.selected_psu == PSU_CHANNEL_1 && application.selected_setpoint == PSU_SETPOINT_CURRENT) ? true : false;
     gui_print_measurement(PSU_SETPOINT_CURRENT, psu_channels[PSU_CHANNEL_1].current_setpoint.value.raw, selected);
-
+    display_write_char(psu_channels[PSU_CHANNEL_1].state == PSU_STATE_OPERATIONAL ? '1' : '0');
 }
 
 /*
@@ -692,33 +724,36 @@ int main(void)
     init_io();
 
     /* Init ranges and precisions */
-    init_psu(psu_channels);
+    init_psu();
 
     /* Default state for the display */
     display_clear_all();
-    display_periodic();     /* call it at least once to clear the display */
     display_enable_cursor(false);
+
+    /* ...splash screen (busy wait, changed later) */
+    display_write_string("IlLorenz");
+    display_set_cursor(1, 0);
+    display_write_string("PSU AVR");
+
+    display_periodic();     /* call it at least once to clear the display */
+    _delay_ms(2000);
 
     while (1)
     {
         /* Periodic functions */
         input_processing();
 
-        if (keypad_clicked(BUTTON_SELECT) == true)
-        {
-            psu_advance_selection();
-        }
+        /* GUI */
+        gui_screen();
 
         /* Output processing */
         output_processing();
 
-        /* GUI */
-        gui_screen();
-
         /* Display handler */
         display_periodic();
 
-        //datagram_buffer_to_remote();
+        /* Send out the oldest datagram from the FIFO */
+        datagram_buffer_to_remote();
 
 #ifdef TIMER_DEBUG
         /* Debug the timer */

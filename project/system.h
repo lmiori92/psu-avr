@@ -66,4 +66,7 @@ void StackPaint(void) __attribute__ ((naked)) __attribute__ ((section (".init1")
 #define DBG_HIGH     PORTD |=  (1 << PIN2);asm("nop")  /**< DBG HIGH */
 #define DBG_CONFIG   DDRD |= (1 << PIN2)
 
+#define CODING_CONFIG   DDRD &= ~(1 << PIN3);PORTD |= (1<<PIN3)    /**< CODING INPUT AND PULLUP */
+#define CODING_READ     ((PIND >> PIN3) & 1)
+
 #endif /* SRC_SYSTEM_H_ */
