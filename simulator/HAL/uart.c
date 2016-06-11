@@ -12,43 +12,49 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-    Lorenzo Miori (C) 2015 [ 3M4|L: memoryS60<at>gmail.com ]
+    Lorenzo Miori (C) 2016 [ 3M4|L: memoryS60<at>gmail.com ]
 
     Version History
         * 1.0 initial
 
 */
 
-/**
- * @file pwm.h
- * @author Lorenzo Miori
- * @date Apr 2016
- * @brief PWM subsystem: initialization and routines to set the duty cycle
- */
+#include "uart.h"
 
-#ifndef PWM_H_
-#define PWM_H_
+#include <stdio.h>
+#include <string.h>
 
-#include <stdint.h>
+FILE uart_output;
+FILE uart_input;
 
-typedef enum
+static t_uart_cb uart_cb = NULL;
+
+void uart_init(void)
 {
-    PWM_CHANNEL_0,
-    PWM_CHANNEL_1,
-    PWM_CHANNEL_2,
-    PWM_CHANNEL_3,
+    memcpy(&uart_output, stdout, sizeof(FILE));
+    memcpy(&uart_input, stdin, sizeof(FILE));
+}
 
-    PWM_CHANNEL_NUM
-} e_pwm_channel;
-
-typedef struct
+void uart_callback(t_uart_cb cb)
 {
-    uint16_t      resolution;
-} t_pwm_channel;
+    uart_cb = cb;
+}
 
-void pwm_init(void);
-void pwm_enable_channel(e_pwm_channel pwm_channel);
-void pwm_set_duty(e_pwm_channel pwm_channel, uint16_t duty);
-uint16_t pwm_get_resolution(e_pwm_channel channel);
+void uart_putchar(char c, FILE *stream)
+{
 
-#endif /* PWM_H_ */
+}
+
+void uart_putstring(char *str)
+{
+    while (*str != 0)
+    {
+        uart_putchar(*str, NULL);
+        str++;
+    }
+}
+
+char uart_getchar(FILE *stream)
+{
+    return (char)0;
+}

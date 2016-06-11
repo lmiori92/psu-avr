@@ -31,7 +31,48 @@
 
 /*#define STACK_MONITORING*/    /**< Enable stack monitoring */
 
+#include <stdbool.h>
 #include <stdint.h>
+
+/** SYSTEM HAL FUNCTIONALITIES **/
+
+#ifdef __AVR_ARCH__
+
+#include <avr/io.h>
+#include <util/atomic.h>  /* cli() and sei() */
+#include <util/delay.h>     /* delay functions */
+
+#define system_delay_ms(x)             _delay_ms(x)
+
+#define system_interrupt_disable()    cli()
+#define system_interrupt_enable()     sei()
+
+#define DBG_LOW      PORTD &= ~(1 << PIN2);asm("nop")  /**< DBG LOW */
+#define DBG_HIGH     PORTD |=  (1 << PIN2);asm("nop")  /**< DBG HIGH */
+#define DBG_CONFIG   DDRD |= (1 << PIN2)
+
+#define CODING_CONFIG   DDRD &= ~(1 << PIN3);PORTD |= (1<<PIN3)    /**< CODING INPUT AND PULLUP */
+#define CODING_READ     ((PIND >> PIN3) & 1)
+
+#else
+
+#include <unistd.h>
+
+#define system_delay_ms(x)             usleep(x * 1000)       /*  */
+
+#define system_interrupt_disable()     do {} while(0);               /* do nothing */
+#define system_interrupt_enable()      do {} while(0);               /* do nothing */
+
+#define DBG_LOW         ;
+#define DBG_HIGH        ;
+#define DBG_CONFIG      ;
+
+#define CODING_CONFIG   ;
+#define CODING_READ     ;
+
+#endif
+
+
 
 /** Output values */
 typedef struct
@@ -58,15 +99,9 @@ extern uint8_t __stack;
 
 /* Functions */
 uint8_t system_init(void);
+bool system_coding_pin_read(void);
 void system_fatal(char *str);
 void system_reset(void);
 void StackPaint(void) __attribute__ ((naked)) __attribute__ ((section (".init1")));
-
-#define DBG_LOW      PORTD &= ~(1 << PIN2);asm("nop")  /**< DBG LOW */
-#define DBG_HIGH     PORTD |=  (1 << PIN2);asm("nop")  /**< DBG HIGH */
-#define DBG_CONFIG   DDRD |= (1 << PIN2)
-
-#define CODING_CONFIG   DDRD &= ~(1 << PIN3);PORTD |= (1<<PIN3)    /**< CODING INPUT AND PULLUP */
-#define CODING_READ     ((PIND >> PIN3) & 1)
 
 #endif /* SRC_SYSTEM_H_ */

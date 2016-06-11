@@ -21,6 +21,8 @@
 
 #include "keypad.h"
 
+#include <stdbool.h>
+
 static t_keypad keypad;
 
 void keypad_init(void)

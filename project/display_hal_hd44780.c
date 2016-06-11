@@ -1,5 +1,6 @@
 
 #include "display.h"
+#include "display_hal.h"
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -198,7 +199,7 @@ static void hd44780_init(void)
 
 }
 
-void display_hal_init(void)
+static void hd44780_display_hal_init(void)
 {
     /* Initialize the shift register backend
      * to be used with the virtual port register */
@@ -213,7 +214,7 @@ void display_hal_init(void)
     _delay_ms(2);
 }
 
-void display_hal_set_cursor(uint8_t line, uint8_t chr)
+static void hd44780_display_hal_set_cursor(uint8_t line, uint8_t chr)
 {
     static uint8_t offsets[] = { 0x00, 0x40, 0x14, 0x54 };
 
@@ -224,12 +225,12 @@ void display_hal_set_cursor(uint8_t line, uint8_t chr)
     hd44780_write_command(HD44780_SETDDRAMADDR | (chr + offsets[line]));
 }
 
-void display_hal_write_char(uint8_t chr)
+static void hd44780_display_hal_write_char(uint8_t chr)
 {
     hd44780_write_data(chr);
 }
 
-void display_hal_cursor_visibility(bool visible)
+static void hd44780_display_hal_cursor_visibility(bool visible)
 {
     if (visible == true)
     {
@@ -241,4 +242,22 @@ void display_hal_cursor_visibility(bool visible)
     }
 
     hd44780_update_parameters();
+}
+
+/**
+ *
+ * @brief
+ *
+ * Register the display to the display subsystem HAL
+ *
+ * @param   funcs   the function pointer structure
+ */
+void hd44780_set_hal(t_display_hal_functions *funcs)
+{
+
+    funcs->display_hal_init = hd44780_display_hal_init;
+    funcs->display_hal_set_cursor = hd44780_display_hal_set_cursor;
+    funcs->display_hal_write_char = hd44780_display_hal_write_char;
+    funcs->display_hal_cursor_visibility = hd44780_display_hal_cursor_visibility;
+
 }

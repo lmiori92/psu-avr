@@ -19,11 +19,9 @@
 
 */
 
-#include <avr/io.h>
-#include <avr/interrupt.h>
-#include <avr/delay.h>
 #include "adc.h"
 #include "display.h"
+#include "display_config.h"
 #include "encoder.h"
 #include "lib.h"
 #include "keypad.h"
@@ -33,6 +31,9 @@
 #include "uart.h"
 #include "remote.h"
 #include "system.h"
+
+/* Standard Library */
+
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -496,18 +497,15 @@ static void encoder_event_callback(e_enc_event event, uint32_t delta_t)
 static void init_io(void)
 {
 
-    cli();
-
-    /* CODING PIN (MASTER/SLAVE) */
-    CODING_CONFIG;
+    system_interrupt_disable();
 
     /* Read the coding pin to understand if master or slave */
-    application.master_or_slave = !!CODING_READ;
+    application.master_or_slave = system_coding_pin_read();
 
     /* UART */
     uart_init();
     uart_callback(uart_received);
-    stdout = &uart_output;
+    //stdout = &uart_output;
     /*stdin  = &uart_input;*/
 
     /* ADC */
@@ -525,13 +523,14 @@ static void init_io(void)
     encoder_init();
     encoder_set_callback(ENC_HW_0, encoder_event_callback);
 
-    /* Display */
+    /* Display: set the intended HAL and initialize the subsystem */
+    display_select();
     display_init();
 
     /* Keypad */
     keypad_init();
 
-    sei();
+    system_interrupt_enable();
 
 }
 
@@ -736,7 +735,7 @@ int main(void)
     display_write_string("PSU AVR");
 
     display_periodic();     /* call it at least once to clear the display */
-    _delay_ms(2000);
+    system_delay_ms(2000);
 
     while (1)
     {

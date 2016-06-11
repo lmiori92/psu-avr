@@ -58,6 +58,7 @@
  */
 
 #include "display.h"
+#include "display_hal.h"
 
 #include <stdbool.h>
 #include <string.h>

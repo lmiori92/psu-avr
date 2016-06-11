@@ -20,7 +20,7 @@
 */
 
 /**
- * @file display_hal_uart.c
+ * @file display_hal_ncurses.c
  * @author Lorenzo Miori
  * @date May 2016
  * @brief Display HAL to interface the APIs to the UART
@@ -28,43 +28,55 @@
 
 #include "display.h"
 #include "display_hal.h"
-#include "uart.h"
+
+#include "ncurses.h"
 
 #include <stdbool.h>
 
-static void uart_display_hal_init(void)
+static void ncurses_display_refresh(void)
 {
-    uart_putstring("\x1B[2J\x1B[H");
+    refresh();
 }
 
-static void uart_display_hal_set_cursor(uint8_t line, uint8_t chr)
+static void ncurses_display_hal_init(void)
+{
+    initscr(); /* Start curses mode */
+
+    erase();
+
+    ncurses_display_refresh();
+
+}
+
+static void ncurses_display_hal_set_cursor(uint8_t line, uint8_t chr)
 {
     /* Line 0 is 1 in UART; Line 1 is 2 in UART and so on ...
      * Avoid using printf, hence a simple switch */
     switch(line)
     {
     case 0:
-        uart_putstring("\x1B[1;1H");
+        move(1, chr+1);
         break;
     case 1:
     default:
-        uart_putstring("\x1B[2;2H");
+        move(2, chr+1);
         break;
     }
 
 }
 
-static void uart_display_hal_write_char(uint8_t chr)
+static void ncurses_display_hal_write_char(uint8_t chr)
 {
-    uart_putchar(chr, NULL);
+    addch(chr);
+
+    ncurses_display_refresh();
 }
 
-static void uart_display_hal_cursor_visibility(bool visible)
+static void ncurses_display_hal_cursor_visibility(bool visible)
 {
-    if (visible == false)
-        uart_putstring("\x1B[?25l");
-    else
-        uart_putstring("\x1B[?25h");
+    curs_set((visible == TRUE) ? 1U : 0U);
+
+    ncurses_display_refresh();
 }
 
 /**
@@ -75,12 +87,12 @@ static void uart_display_hal_cursor_visibility(bool visible)
  *
  * @param   funcs   the function pointer structure
  */
-void uart_set_hal(t_display_hal_functions *funcs)
+void ncurses_set_hal(t_display_hal_functions *funcs)
 {
 
-    funcs->display_hal_init = uart_display_hal_init;
-    funcs->display_hal_set_cursor = uart_display_hal_set_cursor;
-    funcs->display_hal_write_char = uart_display_hal_write_char;
-    funcs->display_hal_cursor_visibility = uart_display_hal_cursor_visibility;
+    funcs->display_hal_init = ncurses_display_hal_init;
+    funcs->display_hal_set_cursor = ncurses_display_hal_set_cursor;
+    funcs->display_hal_write_char = ncurses_display_hal_write_char;
+    funcs->display_hal_cursor_visibility = ncurses_display_hal_cursor_visibility;
 
 }

@@ -25,6 +25,8 @@
 /*#define ADC_NOISE_DEBUG*/
 /*#define ADC_SCOPE_DEBUG*/
 
+#include <stdint.h>
+
 #define ADC_RESOLUTION      1023U       // TODO get it via an ADC API
 
 typedef enum _e_adc_channels

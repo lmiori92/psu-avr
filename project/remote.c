@@ -30,16 +30,15 @@
 #include "remote.h"
 #include "time.h"    /* g_s_timestamp (maybe try to generalize and design without this contraint) */
 #include "uart.h"    /* UART primitives */
-
-#include <util/crc16.h>
-#include <util/atomic.h>    /* cli() and sei() */
+#include "lib.h"     /* CRC16 CCITT */
+#include "system.h"  /* Critical section handlers */
 
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
-#define REMOTE_ENTER_CRITICAL_SECTION       cli()   /**< Call it when handling a shared variable */
-#define REMOTE_EXIT_CRITICAL_SECTION        sei()   /**< Call it when done handling a shared variable */
+#define REMOTE_ENTER_CRITICAL_SECTION       system_interrupt_disable();   /**< Call it when handling a shared variable */
+#define REMOTE_EXIT_CRITICAL_SECTION        system_interrupt_enable();    /**< Call it when done handling a shared variable */
 
 static t_remote_receive_state_machine remote_rcv_sm =
 {
@@ -173,7 +172,7 @@ bool remote_calc_crc_buffer_and_compare(uint8_t *buffer, uint8_t len, uint16_t e
 
     for (i = 0; i < len; i++)
     {
-        crc = _crc16_update(crc, buffer[i]);
+        crc = crc16_1021(crc, buffer[i]);
     }
 
     if (calc_crc != NULL) *calc_crc = crc;

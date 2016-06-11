@@ -6,6 +6,7 @@
 C_SRCS += \
 ../adc.c \
 ../display.c \
+../display_config.c \
 ../display_hal_hd44780.c \
 ../display_hal_uart.c \
 ../encoder.c \
@@ -18,9 +19,17 @@ C_SRCS += \
 ../time.c \
 ../uart.c 
 
+O_SRCS += \
+../display.o \
+../keypad.o \
+../lib.o \
+../main.o \
+../remote.o 
+
 OBJS += \
 ./adc.o \
 ./display.o \
+./display_config.o \
 ./display_hal_hd44780.o \
 ./display_hal_uart.o \
 ./encoder.o \
@@ -36,6 +45,7 @@ OBJS += \
 C_DEPS += \
 ./adc.d \
 ./display.d \
+./display_config.d \
 ./display_hal_hd44780.d \
 ./display_hal_uart.d \
 ./encoder.d \

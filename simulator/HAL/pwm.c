@@ -20,35 +20,47 @@
 */
 
 /**
- * @file pwm.h
+ * @file pwm.c
  * @author Lorenzo Miori
  * @date Apr 2016
  * @brief PWM subsystem: initialization and routines to set the duty cycle
  */
 
-#ifndef PWM_H_
-#define PWM_H_
+#include "pwm.h"
 
-#include <stdint.h>
+#define PWM_FREQ        0x03FFU  /**< determines PWM frequency (15.6 kHz) */
+#define PWM_MODE        1U       /* Fast (1) or Phase Correct (0) */
 
-typedef enum
+static t_pwm_channel pwm_channels[PWM_CHANNEL_NUM];
+
+void pwm_init(void)
 {
-    PWM_CHANNEL_0,
-    PWM_CHANNEL_1,
-    PWM_CHANNEL_2,
-    PWM_CHANNEL_3,
 
-    PWM_CHANNEL_NUM
-} e_pwm_channel;
+    /* only stub values */
+    
+    /* PWM_0 and PWM_1: 10 bit resolution, Fast PWM */
 
-typedef struct
+    pwm_channels[PWM_CHANNEL_0].resolution = PWM_FREQ;
+    pwm_channels[PWM_CHANNEL_1].resolution = PWM_FREQ;
+
+    /* PWM_2 and PWM_3: 8-bit resolution */
+
+    pwm_channels[PWM_CHANNEL_2].resolution = 0xFF;
+    pwm_channels[PWM_CHANNEL_3].resolution = 0xFF;
+
+}
+
+void pwm_enable_channel(e_pwm_channel pwm_channel)
 {
-    uint16_t      resolution;
-} t_pwm_channel;
+    /* do nothing */
+}
 
-void pwm_init(void);
-void pwm_enable_channel(e_pwm_channel pwm_channel);
-void pwm_set_duty(e_pwm_channel pwm_channel, uint16_t duty);
-uint16_t pwm_get_resolution(e_pwm_channel channel);
+void pwm_set_duty(e_pwm_channel pwm_channel, uint16_t duty)
+{
+    /* do nothing */
+}
 
-#endif /* PWM_H_ */
+uint16_t pwm_get_resolution(e_pwm_channel channel)
+{
+    return pwm_channels[channel].resolution;
+}

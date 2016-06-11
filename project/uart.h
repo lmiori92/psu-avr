@@ -22,6 +22,7 @@
 #ifndef _UART_H_
 #define _UART_H_
 
+#include <stdint.h>
 #include <stdio.h>
 
 /** Reception callback function */

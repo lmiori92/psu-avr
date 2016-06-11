@@ -20,32 +20,23 @@
 */
 
 /**
- * @file display_hal.h
+ * @file display_config.c
  * @author Lorenzo Miori
- * @date May 2016
- * @brief Display HAL primitives
+ * @date June 2016
+ * @brief Display subsystem configuration (mainly subsystem selection)
  */
 
-#ifndef DISPLAY_HAL_H_
-#define DISPLAY_HAL_H_
+#include "display.h"
+#include "display_hal.h"
 
-#include <stdbool.h>
+#include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 
-/** Hardware Abstraction Layer */
-typedef struct
+#include <stdio.h>  /* printf-like facility */
+
+void display_select(void)
 {
-    void (*display_hal_init) (void);
-    void (*display_hal_set_cursor) (uint8_t, uint8_t);
-    void (*display_hal_write_char) (uint8_t);
-    void (*display_hal_cursor_visibility) (bool);
-} t_display_hal_functions;
-
-t_display_hal_functions* display_get_current_hal(void);
-
-/* HAL implementations for various kind of display types */
-void uart_set_hal(t_display_hal_functions *funcs);
-void hd44780_set_hal(t_display_hal_functions *funcs);
-void ncurses_set_hal(t_display_hal_functions *funcs);
-
-#endif /* DISPLAY_HAL_H_ */
+    /* That is what we will use on the final project */
+    hd44780_set_hal(display_get_current_hal());
+}

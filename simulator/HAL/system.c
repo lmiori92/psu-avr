@@ -26,9 +26,6 @@
  * @brief System level utilities: ISR debugging / MCU power state
  */
 
-#include <avr/interrupt.h>
-#include <avr/io.h>
-
 #include "uart.h"
 #include "system.h"
 
@@ -75,31 +72,14 @@ uint16_t StackCount(void)
 }
 #endif
 
-/**
- * ISR(BADISR_vect)
- *
- * @brief This interrupt handler is executed whenever an ISR is fired
- * without a defined ISR routine.
- * It tries to write a string on the display and then blocks.
- * Especially useful when implementing interrupt routines..
- */
-ISR(BADISR_vect)
-{
-    uart_putstring("no ISR!\r\n");
-    for(;;);
-}
-
 void system_fatal(char *str)
 {
-    uart_putstring(str);
     for(;;);
 }
 
 void system_reset(void)
 {
-    /* start at zero! */
-    void (*start)(void) = 0;
-    start();
+    /* do nothing */
 }
 
 /**
@@ -111,19 +91,7 @@ void system_reset(void)
  */
 uint8_t system_init(void)
 {
-//    if(MCUCSR & (1<<PORF )) (PSTR("Power-on reset.\n"));
-//    if(MCUCSR & (1<<EXTRF)) (PSTR("External reset!\n"));
-//    if(MCUCSR & (1<<BORF )) (PSTR("Brownout reset!\n"));
-//    if(MCUCSR & (1<<WDRF )) (PSTR("Watchdog reset!\n"));
-    uint8_t t = MCUSR;
-
-    /* Reset state for the next proper detection */
-    MCUSR = 0;
-
-    /* CODING PIN (MASTER/SLAVE) configuration */
-    CODING_CONFIG;
-
-    return t;
+    return 0;
 }
 
 /**
@@ -137,5 +105,5 @@ uint8_t system_init(void)
  */
 bool system_coding_pin_read(void)
 {
-    return !!CODING_READ;
+    return false;
 }

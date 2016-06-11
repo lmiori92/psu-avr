@@ -31,6 +31,7 @@
 
 #include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #include <stdio.h>  /* printf-like facility */
 
@@ -38,11 +39,21 @@
 
 static t_display_status display_status;
 static t_display_elem   display_buffer[DISPLAY_LINE_NUM][DISPLAY_CHAR_NUM];
+
+#ifdef DISPLAY_HAS_PRINTF
 static char snprintf_buf[DISPLAY_CHAR_NUM*DISPLAY_LINE_NUM];
+#endif
+
+static t_display_hal_functions display_hal_functions;   /**< HAL implementation in use (no NULL pointer check is performed!!) */
+
+t_display_hal_functions* display_get_current_hal(void)
+{
+    return &display_hal_functions;
+}
 
 void display_init(void)
 {
-    display_hal_init();
+    (*display_hal_functions.display_hal_init)();
     display_set_cursor(0, 0);
 }
 
@@ -78,8 +89,8 @@ void display_periodic(void)
             if (display_buffer[i][j].character != display_buffer[i][j].character_prev)
             {
                 display_buffer[i][j].character_prev = display_buffer[i][j].character;
-                display_hal_set_cursor(i, j);
-                display_hal_write_char(display_buffer[i][j].character);
+                (*display_hal_functions.display_hal_set_cursor)(i, j);
+                (*display_hal_functions.display_hal_write_char)(display_buffer[i][j].character);
            }
         }
     }
@@ -116,7 +127,7 @@ void display_advance_cursor(uint8_t num)
 
 void display_enable_cursor(bool visible)
 {
-    display_hal_cursor_visibility(visible);
+    (*display_hal_functions.display_hal_cursor_visibility)(visible);
 }
 
 void display_write_char(uint8_t chr)
