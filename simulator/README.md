@@ -33,5 +33,5 @@ The master device being simulated can be started as following
 Finally, the slave device being simulated can be started as following
 
 ```
-./simulator master ttyB
+./simulator slave ttyB
 ```
