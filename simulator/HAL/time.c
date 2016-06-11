@@ -36,11 +36,6 @@
 #include <string.h>
 #include <sys/time.h>
 
-
-#define TIMER_0_PRESCALER_8     (1 << CS01)                     /**< Prescaler 8 */
-#define TIMER_0_PRESCALER_64    ((1 << CS01) | (1 << CS00))     /**< Prescaler 64 */
-#define TIMER_0_PRESCALER_256   (1 << CS02)                     /**< Prescaler 256 */
-
 uint32_t g_timestamp;           /**< Global time-keeping variable (resolution: 100us) */
 
 static void timer_handler (int signum);
@@ -63,10 +58,10 @@ void timer_init(void)
     sa.sa_handler = &timer_handler;
     sigaction (SIGALRM, &sa, NULL);
 
-    /* Configure the timer to expire after 250 msec... */
+    /* Configure the timer to expire after 100 nanoseconds... */
     timer.it_value.tv_sec = 0;
     timer.it_value.tv_usec = 100;
-    /* ... and every 250 msec after that. */
+    /* ... and every 100 nanoseconds after that. */
     timer.it_interval.tv_sec = 0;
     timer.it_interval.tv_usec = 100;
     /* Start a virtual timer. It counts down whenever this process is
@@ -93,6 +88,27 @@ void timer_debug(void)
 #else
 /* No function is available */
 #endif
+
+void timer_delay_ms(uint16_t ms)
+{
+    int signum = 0;
+    int retval = 0;
+    sigset_t set;
+    uint32_t counts = 0;
+
+    /* Wait for n SIGALRM, where n is cycles of 100 nanoseconds.
+     * Hence, we multiply the count number by the granularity
+     * of the timer tick and of course we normalize milliseconds to nanoseconds.
+     * NOTE: if sigwait returns error, timer_delay_ms will immediately return */
+
+    sigaddset(&set, SIGALRM);   /* The signal we are interested in */
+
+    do
+    {
+        retval = sigwait(&set, &signum);
+        counts++;
+    } while((retval != -1) && ((counts) < ((uint32_t)ms * 10)));
+}
 
 /**
  * timer_handler

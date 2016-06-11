@@ -42,8 +42,6 @@
 #include <util/atomic.h>  /* cli() and sei() */
 #include <util/delay.h>     /* delay functions */
 
-#define system_delay_ms(x)             _delay_ms(x)
-
 #define system_interrupt_disable()    cli()
 #define system_interrupt_enable()     sei()
 
@@ -57,8 +55,6 @@
 #else
 
 #include <unistd.h>
-
-#define system_delay_ms(x)             usleep(x * 1000)       /*  */
 
 #define system_interrupt_disable()     do {} while(0);               /* do nothing */
 #define system_interrupt_enable()      do {} while(0);               /* do nothing */

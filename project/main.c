@@ -735,7 +735,7 @@ int main(void)
     display_write_string("PSU AVR");
 
     display_periodic();     /* call it at least once to clear the display */
-    system_delay_ms(2000);
+    timer_delay_ms(2000);
 
     while (1)
     {

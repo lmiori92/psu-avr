@@ -84,6 +84,15 @@ void timer_debug(void)
 #else
 /* No function is available */
 #endif
+
+void timer_delay_ms(uint16_t ms)
+{
+    while(ms--)
+    {
+        _delay_ms(1);
+    }
+}
+
 /**
  * ISR(TIMER0_OVF_vect)
  *
