@@ -17,6 +17,7 @@ A digital-controlled power supply based on the Atmega328P.
 * Several channels can be added, hardware permitting (external ADCs/DACs etc)
 * Immediate and easy GUI using a 2-line display
 * Encoder with smooth control of setpoints via a logarithmic acceleration scale
+* Debug and Development Simulator PC application
 
 ## Hardware
 * 1x atmega328p (master); 1...n atmega328p (slaves)
