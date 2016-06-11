@@ -7,7 +7,7 @@ SDIR=../project
 LDIR =../lib
 HALDIR = ./HAL
 
-LIBS=-lm -lpthread -lncurses
+LIBS=-lm -lncurses
 
 _DEPS = lib.h display.h display_hal.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
