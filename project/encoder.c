@@ -31,8 +31,9 @@
 #include <stdint.h>
 
 #include "encoder.h"
+
 #include "system.h"
-#include "time.h"
+#include "time_m.h"
 
 #define ENC_DDR     DDRD
 #define ENC_PORT    PORTD

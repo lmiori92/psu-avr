@@ -7,16 +7,16 @@ SDIR=../project
 LDIR =../lib
 HALDIR = ./HAL
 
-LIBS=-lm -lncurses
+LIBS=-lm -lncurses -lpthread
 
-_DEPS = lib.h display.h display_hal.h
+_DEPS = psu.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ = lib.o remote.o display.o main.o keypad.o
+_OBJ = lib.o remote.o display.o psu.o keypad.o
 OBJ = $(patsubst %,$(SDIR)/%,$(_OBJ))
 
 #special case for the simulator
-OBJ += display_config.o $(HALDIR)/display_hal_ncurses.o $(HALDIR)/uart.o $(HALDIR)/time.o $(HALDIR)/system.o $(HALDIR)/pwm.o $(HALDIR)/adc.o $(HALDIR)/encoder.o
+OBJ += main.o display_config.o $(HALDIR)/display_hal_ncurses.o $(HALDIR)/uart.o $(HALDIR)/time.o $(HALDIR)/system.o $(HALDIR)/pwm.o $(HALDIR)/adc.o $(HALDIR)/encoder.o
 
 $(ODIR)/%.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)

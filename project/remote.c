@@ -28,7 +28,6 @@
 
 #include "error.h"
 #include "remote.h"
-#include "time.h"    /* g_s_timestamp (maybe try to generalize and design without this contraint) */
 #include "uart.h"    /* UART primitives */
 #include "lib.h"     /* CRC16 CCITT */
 #include "system.h"  /* Critical section handlers */
@@ -36,6 +35,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+
+#include "time_m.h"    /* g_s_timestamp (maybe try to generalize and design without this contraint) */
 
 #define REMOTE_ENTER_CRITICAL_SECTION       system_interrupt_disable();   /**< Call it when handling a shared variable */
 #define REMOTE_EXIT_CRITICAL_SECTION        system_interrupt_enable();    /**< Call it when done handling a shared variable */

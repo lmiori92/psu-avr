@@ -103,7 +103,8 @@ uint8_t system_init(void)
  * @return  TRUE or FALSE (1-bit) value to be used by the logic
  *
  */
+extern bool g_master_or_slave;
 bool system_coding_pin_read(void)
 {
-    return false;
+    return g_master_or_slave;
 }

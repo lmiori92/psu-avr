@@ -13,6 +13,7 @@ C_SRCS += \
 ../keypad.c \
 ../lib.c \
 ../main.c \
+../psu.c \
 ../pwm.c \
 ../remote.c \
 ../system.c \
@@ -36,6 +37,7 @@ OBJS += \
 ./keypad.o \
 ./lib.o \
 ./main.o \
+./psu.o \
 ./pwm.o \
 ./remote.o \
 ./system.o \
@@ -52,6 +54,7 @@ C_DEPS += \
 ./keypad.d \
 ./lib.d \
 ./main.d \
+./psu.d \
 ./pwm.d \
 ./remote.d \
 ./system.d \

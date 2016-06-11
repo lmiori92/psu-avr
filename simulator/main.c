@@ -28,7 +28,29 @@
 
 #include "psu.h"
 
-int main(void)
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+
+bool g_master_or_slave = false;
+char *g_serial_port_path;
+
+int main(int argc, char *argv[])
 {
-    psu_app();
+
+    if (argc >= 3)
+    {
+        /* master or slave? */
+        g_master_or_slave = strcmp(argv[1], "master") == 0 ? true : false;
+
+        /* serial port path */
+        g_serial_port_path = argv[2];
+
+        psu_app();
+    }
+    else
+    {
+        printf("Arguments are missing...stopping.\r\n");
+    }
+
 }

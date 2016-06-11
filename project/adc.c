@@ -33,7 +33,8 @@
 #include <avr/interrupt.h>
 #include <stdbool.h>
 #include "adc.h"
-#include "time.h"
+
+#include "time_m.h"
 
 /* Quick noise debug */
 #ifdef ADC_NOISE_DEBUG

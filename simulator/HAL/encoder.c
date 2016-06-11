@@ -32,6 +32,8 @@
 #include "system.h"
 #include "time.h"
 
+#include "ncurses.h"
+
 /** Encoder status */
 static t_encoder g_encoder[ENC_HW_NUM];
 
