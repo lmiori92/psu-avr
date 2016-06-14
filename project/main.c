@@ -30,5 +30,10 @@
 
 int main(void)
 {
-    psu_app();
+    /* one-time init */
+    psu_init();
+
+    /* main loop */
+    while (1)
+        psu_app();
 }

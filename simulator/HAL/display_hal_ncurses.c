@@ -50,19 +50,9 @@ static void ncurses_display_hal_init(void)
 
 static void ncurses_display_hal_set_cursor(uint8_t line, uint8_t chr)
 {
-    /* Line 0 is 1 in UART; Line 1 is 2 in UART and so on ...
-     * Avoid using printf, hence a simple switch */
-    switch(line)
-    {
-    case 0:
-        move(1, chr+1);
-        break;
-    case 1:
-    default:
-        move(2, chr+1);
-        break;
-    }
+    move(line + 1, chr+1);
 
+    ncurses_display_refresh();
 }
 
 static void ncurses_display_hal_write_char(uint8_t chr)

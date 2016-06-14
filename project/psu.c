@@ -520,13 +520,13 @@ static void init_io(void)
     /* System timer */
     timer_init();
 
-    /* Encoder */
-    encoder_init();
-    encoder_set_callback(ENC_HW_0, encoder_event_callback);
-
     /* Display: set the intended HAL and initialize the subsystem */
     display_select();
     display_init();
+
+    /* Encoder */
+    encoder_init();
+    encoder_set_callback(ENC_HW_0, encoder_event_callback);
 
     /* Keypad */
     keypad_init();
@@ -714,9 +714,8 @@ psu_channels[0].current_setpoint.value.raw = 1500;// = 2047; // observed an offs
 // to-do / to analyze: 1) absolute offset calibration
 //                     2) non linear behaviour correction (do measurements)
 
-__attribute__((always_inline)) void inline psu_app(void)
+void psu_init(void)
 {
-
     /* System init */
     system_init();
 
@@ -736,29 +735,32 @@ __attribute__((always_inline)) void inline psu_app(void)
     display_write_string("PSU AVR");
 
     display_periodic();     /* call it at least once to clear the display */
-    timer_delay_ms(2000);
 
-    while (1)
-    {
-        /* Periodic functions */
-        input_processing();
+    timer_delay_ms(2000);   /* splashscreen! */
 
-        /* GUI */
-        gui_screen();
+}
 
-        /* Output processing */
-        output_processing();
+__attribute__((always_inline)) void inline psu_app(void)
+{
 
-        /* Display handler */
-        display_periodic();
+    /* Periodic functions */
+    input_processing();
 
-        /* Send out the oldest datagram from the FIFO */
-        datagram_buffer_to_remote();
+    /* GUI */
+    gui_screen();
+
+    /* Output processing */
+    output_processing();
+
+    /* Display handler */
+    display_periodic();
+
+    /* Send out the oldest datagram from the FIFO */
+    datagram_buffer_to_remote();
 
 #ifdef TIMER_DEBUG
-        /* Debug the timer */
-        timer_debug();
+    /* Debug the timer */
+    timer_debug();
 #endif
-    }
 
 }

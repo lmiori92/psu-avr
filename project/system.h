@@ -52,6 +52,12 @@
 #define CODING_CONFIG   DDRD &= ~(1 << PIN3);PORTD |= (1<<PIN3)    /**< CODING INPUT AND PULLUP */
 #define CODING_READ     ((PIND >> PIN3) & 1)
 
+/* Globals */
+extern uint8_t _end;
+extern uint8_t __stack;
+
+void StackPaint(void) __attribute__ ((naked)) __attribute__ ((section (".init1")));
+
 #else
 
 #include <unistd.h>
@@ -89,15 +95,11 @@ typedef struct
 
 } t_operational;
 
-/* Globals */
-extern uint8_t _end;
-extern uint8_t __stack;
-
 /* Functions */
+
 uint8_t system_init(void);
-bool system_coding_pin_read(void);
-void system_fatal(char *str);
-void system_reset(void);
-void StackPaint(void) __attribute__ ((naked)) __attribute__ ((section (".init1")));
+bool    system_coding_pin_read(void);
+void    system_fatal(char *str);
+void    system_reset(void);
 
 #endif /* SRC_SYSTEM_H_ */

@@ -91,6 +91,7 @@ void timer_debug(void)
 
 void timer_delay_ms(uint16_t ms)
 {
+    return;
     int signum = 0;
     int retval = 0;
     sigset_t set;

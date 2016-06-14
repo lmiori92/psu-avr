@@ -30,27 +30,75 @@
 
 #include "encoder.h"
 #include "system.h"
-#include "time.h"
+#include "time_m.h"
 
 #include "ncurses.h"
+
+#define __USE_GNU    /* pthread_yield() */
+#include "pthread.h"
 
 /** Encoder status */
 static t_encoder g_encoder[ENC_HW_NUM];
 
-/** Encoder lookup table */
-static const int8_t enc_lookup [] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
-/* coarse encoder lookup table
- * static const int8_t enc_lookup[16] = { 0, 0, -1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, -1, 0, 0 }; */
-#define ENC_LOOKUP_NUM      (sizeof(enc_lookup) / sizeof(enc_lookup[0]))
-#define ENC_TIMEOUT         500000UL            /* us */
-#define ENC_STEP_COUNT      2                   /* steps to generate an event */
+/** Input thread  */
+static pthread_t keyboard_thread;
+
+/* Very crude but effective encoder simulator */
+void* keyboard_thread_worker(void *params)
+{
+    int key;
+
+    (void)params;
+
+    while(1)
+    {
+        key = wgetch(stdscr);
+        switch(key)
+        {
+        case KEY_LEFT:
+            g_encoder[0].delta_t = g_timestamp - g_encoder[0].tick;
+            g_encoder[0].value--;
+            g_encoder[0].raw = 0;
+            g_encoder[0].tick = g_timestamp;
+            g_encoder[0].evt_cb(ENC_EVT_LEFT, g_encoder[0].delta_t);
+            break;
+        case KEY_RIGHT:
+            g_encoder[0].delta_t = g_timestamp - g_encoder[0].tick;
+            g_encoder[0].value--;
+            g_encoder[0].raw = 0;
+            g_encoder[0].tick = g_timestamp;
+            g_encoder[0].evt_cb(ENC_EVT_RIGHT, g_encoder[0].delta_t);
+            break;
+        case KEY_UP:
+            g_encoder[0].tick = g_timestamp;
+            g_encoder[0].evt_cb(ENC_EVT_CLICK_DOWN, g_encoder[0].delta_t);
+            break;
+        case KEY_DOWN:
+            g_encoder[0].tick = g_timestamp;
+            g_encoder[0].evt_cb(ENC_EVT_CLICK_UP, g_encoder[0].delta_t);
+            break;
+        default:
+            break;
+        }
+
+    }
+}
 
 /**
  * Encoder subsystem initialization
  */
 void encoder_init(void)
 {
-    /* do nothing on linux */
+    /* keyboard on linux via ncurses */
+
+    /* important attributes */
+    noecho();
+    cbreak();   /* Line buffering disabled. pass on everything */
+    keypad(stdscr, TRUE);   /* enable keyboard input */
+    nodelay(stdscr,0);
+
+    /* Start the input thread */
+    pthread_create(&keyboard_thread, NULL, keyboard_thread_worker, NULL);
 }
 
 /**

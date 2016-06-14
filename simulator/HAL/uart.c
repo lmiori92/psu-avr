@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#define __USE_GNU   /* pthread_yield() */
 #include "pthread.h"
 
 FILE uart_output;
@@ -39,6 +40,7 @@ extern char *g_serial_port_path;
 static t_uart_cb uart_cb = NULL;
 
 static int fd;
+static pthread_t uart_rx_thread;
 
 static void set_blocking (int fd, int should_block)
 {
@@ -109,12 +111,12 @@ void *uart_rx_thread_worker(void *params)
         {
             uart_cb(tmp);
         }
+
+        pthread_yield();
     }
 
 }
 
-
-pthread_t uart_rx_thread;
 void uart_init(void)
 {
 
@@ -128,7 +130,6 @@ void uart_init(void)
 
     set_interface_attribs(fd, B9600, 0);    /* set speed to 9600 bps, 8n1 (no parity) */
     set_blocking(fd, 1);                      /* set blocking operations */
-
 
     pthread_create(&uart_rx_thread, NULL, uart_rx_thread_worker, &fd);
 

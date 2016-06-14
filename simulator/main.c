@@ -28,12 +28,35 @@
 
 #include "psu.h"
 
+#include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
+#define __USE_GNU   /* pthread_yield() */
+#include "pthread.h"
+
 bool g_master_or_slave = false;
 char *g_serial_port_path;
+
+static pthread_t main_thread;
+
+void* main_thread_worker(void *params)
+{
+
+    struct timespec tim, tim2;
+    tim.tv_nsec = 50000UL;        /* cycle time */
+
+    while (1)
+    {
+        /* The application already runs the code in a while
+         * loop (so does a microcontroller) but */
+        psu_app();
+
+        nanosleep(&tim, &tim2);
+    }
+
+}
 
 int main(int argc, char *argv[])
 {
@@ -46,7 +69,14 @@ int main(int argc, char *argv[])
         /* serial port path */
         g_serial_port_path = argv[2];
 
-        psu_app();
+        /* one-time initialization */
+        psu_init();
+
+        /* start the thread */
+        pthread_create(&main_thread, NULL, main_thread_worker, NULL);
+
+        pthread_join(main_thread, NULL);
+
     }
     else
     {

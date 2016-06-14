@@ -1,6 +1,6 @@
 IDIR =../project
 CC=gcc
-CFLAGS=-I$(IDIR)
+CFLAGS=-I$(IDIR) -g
 
 ODIR=.
 SDIR=../project
