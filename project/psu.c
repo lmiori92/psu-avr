@@ -268,6 +268,22 @@ t_psu_channel* psu_get_channel_from_node_id(uint8_t node_id)
     return ret;
 }
 
+void psu_check_channel(t_psu_channel *psu_channel)
+{
+    /* Check for timeouts (last timestamp is far in the past) */
+    if ((psu_channel->state == PSU_STATE_OPERATIONAL) &&
+        ((g_timestamp - psu_channel->heartbeat_timestamp) > 100000))
+    {
+        /* 100ms worth of data has been lost - or slave is locked-up */
+        psu_channel->state = PSU_STATE_SAFE_STATE;
+    }
+    else
+    {
+        /* normal operation */
+        //psu_channel->state = PSU_STATE_OPERATIONAL;
+    }
+}
+
 /**
  * Parse the received datagram(s)
  */
@@ -276,6 +292,7 @@ static void remote_decode_datagram(void)
     bool new;
     bool crc_ok;
     uint8_t i = 0;
+    t_psu_channel *temp_ch;
 
     do
     {
@@ -298,12 +315,23 @@ static void remote_decode_datagram(void)
                     remote_decode_config(&remote_dgram_rcv_copy, psu_get_channel_from_node_id(remote_dgram_rcv_copy.datagram.node_id));
                     break;
                 case DATATYPE_READOUTS:
+                    temp_ch = psu_get_channel_from_node_id(remote_dgram_rcv_copy.datagram.node_id);
                     /* readout data */
-                    remote_decode_readout(&remote_dgram_rcv_copy, psu_get_channel_from_node_id(remote_dgram_rcv_copy.datagram.node_id));
+                    remote_decode_readout(&remote_dgram_rcv_copy, temp_ch);
+                    temp_ch->heartbeat_timestamp = g_timestamp;
                     break;
                 case DATATYPE_SETPOINTS:
+                    temp_ch = psu_get_channel_from_node_id(remote_dgram_rcv_copy.datagram.node_id);
                     /* setpoints data */
-                    remote_decode_setpoint(&remote_dgram_rcv_copy, psu_get_channel_from_node_id(remote_dgram_rcv_copy.datagram.node_id));
+                    remote_decode_setpoint(&remote_dgram_rcv_copy, temp_ch);
+
+                    // VERY VERY STRANGE
+                    // BUT I think I was right thinking that a bad header
+                    // followed by a good crc can cause problems pff
+                    // perhaps crc and length only shall be sent as raw
+                    // data?
+
+                    if (temp_ch != NULL) temp_ch->heartbeat_timestamp = g_timestamp;
                     break;
                 default:
                     break;
@@ -591,6 +619,7 @@ static void input_processing(void)
         else
         {
             /* Slave(s)<->Master communication takes care of that */
+            psu_check_channel(&psu_channels[i]);
         }
 
         /* Post-processing (scaling) of the values */
@@ -702,7 +731,11 @@ static void gui_screen(void)
 
     selected = (application.selected_psu == PSU_CHANNEL_1 && application.selected_setpoint == PSU_SETPOINT_CURRENT) ? true : false;
     gui_print_measurement(PSU_SETPOINT_CURRENT, psu_channels[PSU_CHANNEL_1].current_setpoint.value.raw, selected);
-    display_write_char(psu_channels[PSU_CHANNEL_1].state == PSU_STATE_OPERATIONAL ? '1' : '0');
+
+    if (psu_channels[PSU_CHANNEL_1].state == PSU_STATE_SAFE_STATE)
+        display_write_char('S');
+    else
+        display_write_char(psu_channels[PSU_CHANNEL_1].state == PSU_STATE_OPERATIONAL ? '1' : '0');
 }
 
 /*

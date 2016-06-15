@@ -58,6 +58,7 @@ typedef struct _t_channel
 {
     uint8_t        remote_node;             /**< 0: local node; >1: remote node monitoring */
     e_psu_state    state;                   /**< PSU Channel state */
+    uint32_t       heartbeat_timestamp;     /**< Store the timestamp when the last communication with the slave happened */
 
     t_measurement     voltage_setpoint;        /**< Voltage setpoint for the channel */
     t_measurement     voltage_readout;         /**< Voltage measurement for the channel */
