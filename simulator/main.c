@@ -45,7 +45,7 @@ void* main_thread_worker(void *params)
 {
 
     struct timespec tim, tim2;
-    tim.tv_nsec = 50000UL;        /* cycle time */
+    tim.tv_nsec = 500000UL;        /* cycle time */
 
     while (1)
     {

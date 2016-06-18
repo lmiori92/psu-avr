@@ -31,3 +31,4 @@ simulator: $(OBJ)
 clean:
 	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~  
 	rm -f $(SDIR)/*.o
+	rm -f $(HALDIR)/*.o

@@ -40,8 +40,33 @@
 
 #include "time_m.h"
 
+/* CONSTANTS */
+const uint8_t psu_channel_node_id_map[PSU_CHANNEL_NUM][2] =
+{
+        /* MASTER - SLAVE (0: local channel or disabled) */
+        { 0, 1 },
+        { 1, 0 }
+};
+
 /* GLOBALS */
-static t_psu_channel psu_channels[PSU_CHANNEL_NUM];
+static t_psu_channel psu_channels[PSU_CHANNEL_NUM] =
+{
+        /* Channel 0 (local) */
+        {
+                .voltage_adc_channel = ADC_0,
+                .current_adc_channel = ADC_1,
+                .voltage_pwm_channel = PWM_CHANNEL_0,
+                .current_pwm_channel = PWM_CHANNEL_1,
+        },
+
+        /* Channel 1 (remote) */
+        {
+                .voltage_adc_channel = ADC_2,
+                .current_adc_channel = ADC_3,
+                .voltage_pwm_channel = PWM_CHANNEL_2,
+                .current_pwm_channel = PWM_CHANNEL_3,
+        }
+};
 
 typedef struct
 {
@@ -59,13 +84,17 @@ static t_application application;
 /* Remote application level buffers */
 static t_remote_datagram_buffer remote_dgram_rcv_copy;
 
+
+static void remote_encode_datagram(e_datatype type, t_psu_channel *channel);
+
+
 void uart_received(uint8_t byte)
 {
 
     /* NOTE: interrupt callback. Pay attention to execution time... */
 
     /* Call the state machine with a single byte... */
-    remote_buffer_to_datagram(byte);
+    remote_buffer_to_datagram(g_timestamp, byte);
 
 }
 
@@ -125,7 +154,7 @@ static void psu_advance_selection(void)
 static void remote_encode_setpoint(t_remote_datagram_buffer *datagram, t_psu_channel *channel)
 {
 
-    datagram->datagram.node_id     = channel->remote_node;
+    datagram->datagram.node_id     = channel->node_id;
     datagram->datagram.magic_start = DGRAM_MAGIC_START;
     datagram->datagram.magic_end   = DGRAM_MAGIC_END;
 
@@ -154,13 +183,15 @@ static void remote_decode_setpoint(t_remote_datagram_buffer *datagram, t_psu_cha
         channel->voltage_setpoint.value.raw = lib_bytes_to_uint16(datagram->data[1], datagram->data[2]);
         /* Current setpoint for the remote channel */
         channel->current_setpoint.value.raw = lib_bytes_to_uint16(datagram->data[3], datagram->data[4]);
+        /* heartbeat notify */
+        channel->heartbeat_timestamp = g_timestamp;
     }
 }
 
 static void remote_encode_readout(t_remote_datagram_buffer *datagram, t_psu_channel *channel)
 {
 
-    datagram->datagram.node_id     = channel->remote_node;
+    datagram->datagram.node_id     = channel->node_id;
     datagram->datagram.magic_start = DGRAM_MAGIC_START;
     datagram->datagram.magic_end   = DGRAM_MAGIC_END;
 
@@ -189,6 +220,9 @@ static void remote_decode_readout(t_remote_datagram_buffer *datagram, t_psu_chan
         channel->voltage_readout.value.raw = lib_bytes_to_uint16(datagram->data[1], datagram->data[2]);
         /* Current measurement for the remote channel */
         channel->current_readout.value.raw = lib_bytes_to_uint16(datagram->data[3], datagram->data[4]);
+
+        /* heartbeat notify */
+        channel->heartbeat_timestamp = g_timestamp;
     }
 }
 
@@ -196,7 +230,7 @@ static void remote_encode_config(t_remote_datagram_buffer *datagram, t_psu_chann
 {
     if ((datagram != NULL) && (channel != NULL))
     {
-        datagram->datagram.node_id     = channel->remote_node;
+        datagram->datagram.node_id     = channel->node_id;
         datagram->datagram.magic_start = DGRAM_MAGIC_START;
         datagram->datagram.magic_end   = DGRAM_MAGIC_END;
 
@@ -248,6 +282,10 @@ static void remote_decode_config(t_remote_datagram_buffer *datagram, t_psu_chann
 
         /* Config received, set to operational */
         channel->state = PSU_STATE_OPERATIONAL;
+
+        /* heartbeat notify */
+        channel->heartbeat_timestamp = g_timestamp;
+
     }
 }
 
@@ -259,7 +297,7 @@ t_psu_channel* psu_get_channel_from_node_id(uint8_t node_id)
 
     for (i = 0; i < PSU_CHANNEL_NUM; i++)
     {
-        if (psu_channels[i].remote_node == node_id)
+        if (psu_channels[i].node_id == node_id)
         {
             ret = &psu_channels[i];
         }
@@ -270,17 +308,53 @@ t_psu_channel* psu_get_channel_from_node_id(uint8_t node_id)
 
 void psu_check_channel(t_psu_channel *psu_channel)
 {
-    /* Check for timeouts (last timestamp is far in the past) */
-    if ((psu_channel->state == PSU_STATE_OPERATIONAL) &&
-        ((g_timestamp - psu_channel->heartbeat_timestamp) > 100000))
+
+    switch(psu_channel->state)
     {
-        /* 100ms worth of data has been lost - or slave is locked-up */
-        psu_channel->state = PSU_STATE_SAFE_STATE;
-    }
-    else
-    {
-        /* normal operation */
-        //psu_channel->state = PSU_STATE_OPERATIONAL;
+    case PSU_STATE_INIT:
+
+        /* Send the channel's configuration */
+        if ((psu_channel->master_or_slave == false) && (psu_channel->node_id > 0U))
+        {
+            /* Send 3 copies of config frames */
+            remote_encode_datagram(DATATYPE_CONFIG, psu_channel);
+        }
+        else
+        {
+            /* No configuration to be done */
+        }
+
+        /* goto preoperational */
+        psu_channel->state = PSU_STATE_PREOPERATIONAL;
+
+        break;
+    case PSU_STATE_PREOPERATIONAL:
+        /* Preoperational */
+        if (psu_channel->remote_or_local == false)
+        {
+            /* Immediatly do the transition to operational, if
+             * local channel (i.e. hardware is ready) */
+            psu_channel->state = PSU_STATE_OPERATIONAL;
+        }
+        else
+        {
+            /* wait for the config frame */
+        }
+        break;
+    case PSU_STATE_OPERATIONAL:
+        /* Check for timeouts (last timestamp is far in the past) */
+
+        if ((g_timestamp - psu_channel->heartbeat_timestamp) > PSU_CHANNEL_TIMEOUT)
+        {
+            /* 100ms worth of data has been lost - or slave is locked-up */
+            psu_channel->state = PSU_STATE_SAFE_STATE;
+        }
+
+        break;
+    case PSU_STATE_SAFE_STATE:
+        break;
+    default:
+        break;
     }
 }
 
@@ -303,6 +377,10 @@ static void remote_decode_datagram(void)
             if ((crc_ok == true) && (remote_dgram_rcv_copy.datagram.len > 0U))
             {
 
+                /* Get the associated channel, if possible
+                 * NOTE: channel id is divided by 2 (it is * 2 on slave!) */
+                temp_ch = psu_get_channel_from_node_id(remote_dgram_rcv_copy.datagram.node_id);
+
                 switch (remote_dgram_rcv_copy.data[0])
                 {
                 case DATAYPE_DEBUG:
@@ -312,26 +390,16 @@ static void remote_decode_datagram(void)
                     break;
                 case DATATYPE_CONFIG:
                     /* config data */
-                    remote_decode_config(&remote_dgram_rcv_copy, psu_get_channel_from_node_id(remote_dgram_rcv_copy.datagram.node_id));
+                    remote_decode_config(&remote_dgram_rcv_copy, temp_ch);
+
                     break;
                 case DATATYPE_READOUTS:
-                    temp_ch = psu_get_channel_from_node_id(remote_dgram_rcv_copy.datagram.node_id);
                     /* readout data */
                     remote_decode_readout(&remote_dgram_rcv_copy, temp_ch);
-                    temp_ch->heartbeat_timestamp = g_timestamp;
                     break;
                 case DATATYPE_SETPOINTS:
-                    temp_ch = psu_get_channel_from_node_id(remote_dgram_rcv_copy.datagram.node_id);
                     /* setpoints data */
                     remote_decode_setpoint(&remote_dgram_rcv_copy, temp_ch);
-
-                    // VERY VERY STRANGE
-                    // BUT I think I was right thinking that a bad header
-                    // followed by a good crc can cause problems pff
-                    // perhaps crc and length only shall be sent as raw
-                    // data?
-
-                    if (temp_ch != NULL) temp_ch->heartbeat_timestamp = g_timestamp;
                     break;
                 default:
                     break;
@@ -374,7 +442,7 @@ static void remote_encode_datagram(e_datatype type, t_psu_channel *channel)
         }
 
         /* set the datagram as sendable */
-        remote_send_buffer_send(rem_buf);
+        remote_send_buffer_send(g_timestamp, rem_buf);
     }
     else
     {
@@ -383,50 +451,28 @@ static void remote_encode_datagram(e_datatype type, t_psu_channel *channel)
     }
 }
 
-static void init_psu_channel(t_psu_channel *channel, e_psu_channel psu_ch, bool master_or_slave)
+static void psu_init_channel(t_psu_channel *channel, e_psu_channel psu_ch, bool master_or_slave)
 {
 
-    switch(psu_ch)
+    /* Preoperational mode initially */
+    channel->state             = PSU_STATE_INIT;
+
+    /* Remote master or slave? */
+    channel->master_or_slave = master_or_slave;
+
+    /* Set nodeID */
+    channel->node_id = psu_channel_node_id_map[psu_ch][master_or_slave ? 0U : 1U];
+
+    /* Remote or local? */
+    if (master_or_slave == true)
     {
-        case PSU_CHANNEL_0:
-            /* Local node -> immediately set to operational */
-            channel->state               = PSU_STATE_OPERATIONAL;
-            channel->voltage_adc_channel = ADC_0;
-            channel->current_adc_channel = ADC_1;
-            channel->voltage_pwm_channel = PWM_CHANNEL_0;
-            channel->current_pwm_channel = PWM_CHANNEL_1;
-            if (master_or_slave == false)
-            {
-                /* If this is a slave */
-                channel->remote_node         = 1U;
-            }
-            else
-            {
-                /* If this is a master */
-                channel->remote_node         = 0U;
-                /* it is a master node; nothing to send */
-            }
-            break;
-        case PSU_CHANNEL_1:
-            if (master_or_slave == true)
-            {
-                /* Remote node -> set to preoperational */
-                channel->remote_node         = 1U;
-            }
-            else
-            {
-                /* unused */
-                channel->remote_node         = 2U;
-            }
-            channel->state               = PSU_STATE_PREOPERATIONAL;
-            channel->voltage_adc_channel = ADC_2;
-            channel->current_adc_channel = ADC_3;
-            channel->voltage_pwm_channel = PWM_CHANNEL_2;
-            channel->current_pwm_channel = PWM_CHANNEL_3;
-            break;
-        default:
-            /* No channel selected */
-            break;
+        /* on a master only nodes with ID 0 are local */
+        channel->remote_or_local = (channel->node_id > 0U) ? true : false;
+    }
+    else
+    {
+        /* on a slave, all channels are local */
+        channel->remote_or_local = false;
     }
 
     channel->voltage_readout.scale.min = 0;
@@ -448,13 +494,6 @@ static void init_psu_channel(t_psu_channel *channel, e_psu_channel psu_ch, bool 
     channel->current_setpoint.scale.max = 2048;
     channel->current_setpoint.scale.min_scaled = 0;
     channel->current_setpoint.scale.max_scaled = pwm_get_resolution(channel->current_pwm_channel);
-if ((master_or_slave == false) && psu_ch == PSU_CHANNEL_0)
-{
-    // TODO test  onlz
-    channel->voltage_setpoint.scale.max = 12345;
-/* If this is the channel of a slave send the config datagram */
-remote_encode_datagram(DATATYPE_CONFIG, channel);
-}
 }
 
 static void init_psu(void)
@@ -464,7 +503,7 @@ static void init_psu(void)
 
     for (i = 0; i < (uint8_t)PSU_CHANNEL_NUM; i++)
     {
-        init_psu_channel(&psu_channels[i], (e_psu_channel)i, application.master_or_slave);
+        psu_init_channel(&psu_channels[i], (e_psu_channel)i, application.master_or_slave);
     }
 
     /* Start with a known selection */
@@ -534,8 +573,8 @@ static void init_io(void)
     /* UART */
     uart_init();
     uart_callback(uart_received);
-    //stdout = &uart_output;
-    /*stdin  = &uart_input;*/
+    /* stdout = &uart_output; */
+    /* stdin  = &uart_input; */
 
     /* ADC */
     adc_init();
@@ -565,24 +604,18 @@ static void init_io(void)
 
 static void adc_processing(t_psu_channel *channel)
 {
-
     /* Voltage */
     channel->voltage_readout.value.raw = adc_get(channel->voltage_adc_channel);
-
     /* Current */
     channel->current_readout.value.raw = adc_get(channel->current_adc_channel);
-
 }
 
 static void pwm_processing(t_psu_channel *channel)
 {
-
     /* Voltage */
     pwm_set_duty(channel->voltage_pwm_channel, channel->voltage_setpoint.value.scaled);
-
     /* Current */
     pwm_set_duty(channel->current_pwm_channel, channel->current_setpoint.value.scaled);
-
 }
 
 static void psu_postprocessing(t_psu_channel *channel)
@@ -611,16 +644,26 @@ static void input_processing(void)
 
     for (i = 0; i < (uint8_t)PSU_CHANNEL_NUM; i++)
     {
-        if (psu_channels[i].remote_node == 0U)
+        if (psu_channels[i].remote_or_local == false)
         {
             /* Local channel */
             adc_processing(&psu_channels[i]);
+            /* Heartbeat */
+            psu_channels->heartbeat_timestamp = g_timestamp;
+
+            if ((psu_channels[i].master_or_slave == false) && (psu_channels[i].node_id > 0U))
+            {
+                remote_encode_datagram(DATATYPE_READOUTS, &psu_channels[i]);
+            }
+
         }
         else
         {
             /* Slave(s)<->Master communication takes care of that */
-            psu_check_channel(&psu_channels[i]);
         }
+
+        /* Perform checks on the channel */
+        psu_check_channel(&psu_channels[i]);
 
         /* Post-processing (scaling) of the values */
         psu_postprocessing(&psu_channels[i]);
@@ -638,20 +681,27 @@ static void output_processing(void)
 
     for (i = 0; i < (uint8_t)PSU_CHANNEL_NUM; i++)
     {
-        if (psu_channels[i].state != PSU_STATE_PREOPERATIONAL)
+        if (psu_channels[i].state == PSU_STATE_OPERATIONAL)
         {
             /* Pre-processing (scaling) of the values */
             psu_preprocessing(&psu_channels[i]);
 
-            if (psu_channels[i].remote_node == 0U)
+            if (psu_channels[i].remote_or_local == false)
             {
                 /* Local channel */
                 pwm_processing(&psu_channels[i]);
             }
             else
             {
-                /* Slave(s)<->Master communication takes care of that */
-                remote_encode_datagram(DATATYPE_SETPOINTS, &psu_channels[0]);
+                if ((application.master_or_slave == true) && (psu_channels[i].node_id > 0U))
+                {
+                    /* Slave(s)<->Master communication takes care of that */
+                    remote_encode_datagram(DATATYPE_SETPOINTS, &psu_channels[i]);
+                }
+                else
+                {
+                    /* Slave(s) are not sending setpoint values */
+                }
             }
         }
     }

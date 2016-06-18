@@ -104,6 +104,7 @@ void *uart_rx_thread_worker(void *params)
     int uart_fd = *((int*)params);
     char tmp;
     uint32_t retval;
+
     while(1)
     {
         retval = read(uart_fd, &tmp, 1);
@@ -143,6 +144,9 @@ void uart_callback(t_uart_cb cb)
 void uart_putchar(char c, FILE *stream)
 {
     write(fd, &c, 1);
+    /* blocking operation, no buffering! */
+    tcdrain(fd);
+    fsync(fd);
 }
 
 void uart_putstring(char *str)
