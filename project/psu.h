@@ -84,7 +84,7 @@ typedef enum _e_psu_channels
     PSU_CHANNEL_NUM
 } e_psu_channel;
 
-void psu_init(void);
+void psu_app_init(void);
 void psu_app(void);
 
 #endif /* PSU_H_ */

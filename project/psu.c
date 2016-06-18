@@ -40,12 +40,29 @@
 
 #include "time_m.h"
 
+/* DEFINES */
+
+#define SMOOTHING_SIZE      (sizeof(smoothing_deltat) / sizeof(smoothing_deltat[0]))
+
 /* CONSTANTS */
 const uint8_t psu_channel_node_id_map[PSU_CHANNEL_NUM][2] =
 {
         /* MASTER - SLAVE (0: local channel or disabled) */
         { 0, 1 },
         { 1, 0 }
+};
+
+static const uint16_t smoothing_deltat[] =
+{
+    65051, 54845, 47930, 42693, 38477, 34948, 31913, 29251, 26880, 24742, 22796,
+    21010, 19360, 17827, 16395, 15051, 13786, 12590, 11457, 10380, 9354,
+    8374, 7437, 6538, 5675, 4845, 4046, 3275, 2530, 1810, 1113, 500
+};
+
+static const uint16_t smoothing_result[SMOOTHING_SIZE] =
+{
+    1, 1, 1, 20, 55, 90, 125, 160, 195, 230, 265, 300, 335, 370, 405, 440, 475,
+    510, 545, 580, 615, 650, 685, 720, 755, 790, 825, 860, 895, 930, 965, 1000
 };
 
 /* GLOBALS */
@@ -84,70 +101,13 @@ static t_application application;
 /* Remote application level buffers */
 static t_remote_datagram_buffer remote_dgram_rcv_copy;
 
-
-static void remote_encode_datagram(e_datatype type, t_psu_channel *channel);
-
-
-void uart_received(uint8_t byte)
+static void uart_received(uint8_t byte)
 {
 
     /* NOTE: interrupt callback. Pay attention to execution time... */
 
     /* Call the state machine with a single byte... */
     remote_buffer_to_datagram(g_timestamp, byte);
-
-}
-
-static void psu_select_channel(e_psu_channel channel, e_psu_setpoint setpoint)
-{
-    application.selected_setpoint = setpoint;
-    application.selected_psu = channel;
-
-    /* Cache the pointers for an optimized ISR routine */
-    application.selected_psu_ptr = &psu_channels[channel];
-    switch (setpoint)
-    {
-    case PSU_SETPOINT_CURRENT:
-        application.selected_setpoint_ptr = &psu_channels[channel].current_setpoint;
-        break;
-    case PSU_SETPOINT_VOLTAGE:
-        application.selected_setpoint_ptr = &psu_channels[channel].voltage_setpoint;
-        break;
-    }
-
-}
-
-static void psu_advance_selection(void)
-{
-    e_psu_channel ch = application.selected_psu;
-    e_psu_setpoint sp = application.selected_setpoint;
-
-    switch (application.selected_setpoint)
-    {
-    case PSU_SETPOINT_VOLTAGE:
-        sp = PSU_SETPOINT_CURRENT;
-        break;
-    case PSU_SETPOINT_CURRENT:
-        /* Switch to the other channel */
-        switch (ch)
-        {
-        case PSU_CHANNEL_0:
-            ch = PSU_CHANNEL_1;
-            break;
-        case PSU_CHANNEL_1:
-            ch = PSU_CHANNEL_0;
-            break;
-        default:
-            ch = PSU_CHANNEL_0;
-            break;
-        }
-
-        sp = PSU_SETPOINT_VOLTAGE;
-
-        break;
-    }
-
-    psu_select_channel(ch, sp);
 
 }
 
@@ -289,7 +249,7 @@ static void remote_decode_config(t_remote_datagram_buffer *datagram, t_psu_chann
     }
 }
 
-t_psu_channel* psu_get_channel_from_node_id(uint8_t node_id)
+static t_psu_channel* psu_get_channel_from_node_id(uint8_t node_id)
 {
     uint16_t i = 0;
 
@@ -304,58 +264,6 @@ t_psu_channel* psu_get_channel_from_node_id(uint8_t node_id)
     }
 
     return ret;
-}
-
-void psu_check_channel(t_psu_channel *psu_channel)
-{
-
-    switch(psu_channel->state)
-    {
-    case PSU_STATE_INIT:
-
-        /* Send the channel's configuration */
-        if ((psu_channel->master_or_slave == false) && (psu_channel->node_id > 0U))
-        {
-            /* Send 3 copies of config frames */
-            remote_encode_datagram(DATATYPE_CONFIG, psu_channel);
-        }
-        else
-        {
-            /* No configuration to be done */
-        }
-
-        /* goto preoperational */
-        psu_channel->state = PSU_STATE_PREOPERATIONAL;
-
-        break;
-    case PSU_STATE_PREOPERATIONAL:
-        /* Preoperational */
-        if (psu_channel->remote_or_local == false)
-        {
-            /* Immediatly do the transition to operational, if
-             * local channel (i.e. hardware is ready) */
-            psu_channel->state = PSU_STATE_OPERATIONAL;
-        }
-        else
-        {
-            /* wait for the config frame */
-        }
-        break;
-    case PSU_STATE_OPERATIONAL:
-        /* Check for timeouts (last timestamp is far in the past) */
-
-        if ((g_timestamp - psu_channel->heartbeat_timestamp) > PSU_CHANNEL_TIMEOUT)
-        {
-            /* 100ms worth of data has been lost - or slave is locked-up */
-            psu_channel->state = PSU_STATE_SAFE_STATE;
-        }
-
-        break;
-    case PSU_STATE_SAFE_STATE:
-        break;
-    default:
-        break;
-    }
 }
 
 /**
@@ -451,6 +359,111 @@ static void remote_encode_datagram(e_datatype type, t_psu_channel *channel)
     }
 }
 
+static void psu_select_channel(e_psu_channel channel, e_psu_setpoint setpoint)
+{
+    application.selected_setpoint = setpoint;
+    application.selected_psu = channel;
+
+    /* Cache the pointers for an optimized ISR routine */
+    application.selected_psu_ptr = &psu_channels[channel];
+    switch (setpoint)
+    {
+    case PSU_SETPOINT_CURRENT:
+        application.selected_setpoint_ptr = &psu_channels[channel].current_setpoint;
+        break;
+    case PSU_SETPOINT_VOLTAGE:
+        application.selected_setpoint_ptr = &psu_channels[channel].voltage_setpoint;
+        break;
+    }
+
+}
+
+static void psu_advance_selection(void)
+{
+    e_psu_channel ch = application.selected_psu;
+    e_psu_setpoint sp = application.selected_setpoint;
+
+    switch (application.selected_setpoint)
+    {
+    case PSU_SETPOINT_VOLTAGE:
+        sp = PSU_SETPOINT_CURRENT;
+        break;
+    case PSU_SETPOINT_CURRENT:
+        /* Switch to the other channel */
+        switch (ch)
+        {
+        case PSU_CHANNEL_0:
+            ch = PSU_CHANNEL_1;
+            break;
+        case PSU_CHANNEL_1:
+            ch = PSU_CHANNEL_0;
+            break;
+        default:
+            ch = PSU_CHANNEL_0;
+            break;
+        }
+
+        sp = PSU_SETPOINT_VOLTAGE;
+
+        break;
+    }
+
+    psu_select_channel(ch, sp);
+
+}
+
+static void psu_check_channel(t_psu_channel *psu_channel)
+{
+
+    switch(psu_channel->state)
+    {
+    case PSU_STATE_INIT:
+
+        /* Send the channel's configuration */
+        if ((psu_channel->master_or_slave == false) && (psu_channel->node_id > 0U))
+        {
+            /* Send 3 copies of config frames */
+            remote_encode_datagram(DATATYPE_CONFIG, psu_channel);
+        }
+        else
+        {
+            /* No configuration to be done */
+        }
+
+        /* goto preoperational */
+        psu_channel->state = PSU_STATE_PREOPERATIONAL;
+
+        break;
+    case PSU_STATE_PREOPERATIONAL:
+        /* Preoperational */
+        if (psu_channel->remote_or_local == false)
+        {
+            /* Immediatly do the transition to operational, if
+             * local channel (i.e. hardware is ready) */
+            psu_channel->state = PSU_STATE_OPERATIONAL;
+        }
+        else
+        {
+            /* wait for the config frame */
+        }
+        break;
+    case PSU_STATE_OPERATIONAL:
+        /* Check for timeouts (last timestamp is far in the past) */
+
+        if ((g_timestamp - psu_channel->heartbeat_timestamp) > PSU_CHANNEL_TIMEOUT)
+        {
+            /* 100ms worth of data has been lost - or slave is locked-up */
+            psu_channel->state = PSU_STATE_SAFE_STATE;
+        }
+
+        break;
+    case PSU_STATE_SAFE_STATE:
+        break;
+    default:
+        break;
+    }
+}
+
 static void psu_init_channel(t_psu_channel *channel, e_psu_channel psu_ch, bool master_or_slave)
 {
 
@@ -496,7 +509,7 @@ static void psu_init_channel(t_psu_channel *channel, e_psu_channel psu_ch, bool 
     channel->current_setpoint.scale.max_scaled = pwm_get_resolution(channel->current_pwm_channel);
 }
 
-static void init_psu(void)
+static void psu_init(void)
 {
 
     uint8_t i;
@@ -510,21 +523,6 @@ static void init_psu(void)
     psu_select_channel(PSU_CHANNEL_0, PSU_SETPOINT_VOLTAGE);
 
 }
-
-static const uint16_t smoothing_deltat[] =
-{
-    65051, 54845, 47930, 42693, 38477, 34948, 31913, 29251, 26880, 24742, 22796,
-    21010, 19360, 17827, 16395, 15051, 13786, 12590, 11457, 10380, 9354,
-    8374, 7437, 6538, 5675, 4845, 4046, 3275, 2530, 1810, 1113, 500
-};
-
-#define SMOOTHING_SIZE      (sizeof(smoothing_deltat) / sizeof(smoothing_deltat[0]))
-
-static const uint16_t smoothing_result[SMOOTHING_SIZE] =
-{
-    1, 1, 1, 20, 55, 90, 125, 160, 195, 230, 265, 300, 335, 370, 405, 440, 475,
-    510, 545, 580, 615, 650, 685, 720, 755, 790, 825, 860, 895, 930, 965, 1000
-};
 
 static void encoder_event_callback(e_enc_event event, uint32_t delta_t)
 {
@@ -602,7 +600,7 @@ static void init_io(void)
 
 }
 
-static void adc_processing(t_psu_channel *channel)
+static void psu_adc_processing(t_psu_channel *channel)
 {
     /* Voltage */
     channel->voltage_readout.value.raw = adc_get(channel->voltage_adc_channel);
@@ -610,7 +608,7 @@ static void adc_processing(t_psu_channel *channel)
     channel->current_readout.value.raw = adc_get(channel->current_adc_channel);
 }
 
-static void pwm_processing(t_psu_channel *channel)
+static void psu_pwm_processing(t_psu_channel *channel)
 {
     /* Voltage */
     pwm_set_duty(channel->voltage_pwm_channel, channel->voltage_setpoint.value.scaled);
@@ -634,7 +632,7 @@ static void psu_preprocessing(t_psu_channel *channel)
     lib_scale(&channel->current_setpoint.value, &channel->current_setpoint.scale);
 }
 
-static void input_processing(void)
+static void psu_input_processing(void)
 {
 
     uint8_t i;
@@ -647,7 +645,7 @@ static void input_processing(void)
         if (psu_channels[i].remote_or_local == false)
         {
             /* Local channel */
-            adc_processing(&psu_channels[i]);
+            psu_adc_processing(&psu_channels[i]);
             /* Heartbeat */
             psu_channels->heartbeat_timestamp = g_timestamp;
 
@@ -675,7 +673,7 @@ static void input_processing(void)
 
 }
 
-static void output_processing(void)
+static void psu_output_processing(void)
 {
     uint8_t i;
 
@@ -689,7 +687,7 @@ static void output_processing(void)
             if (psu_channels[i].remote_or_local == false)
             {
                 /* Local channel */
-                pwm_processing(&psu_channels[i]);
+                psu_pwm_processing(&psu_channels[i]);
             }
             else
             {
@@ -753,7 +751,7 @@ static void gui_print_measurement(e_psu_setpoint type, uint16_t value, bool sele
 
 }
 
-static void gui_screen(void)
+static void gui_main_screen(void)
 {
     bool selected;
 
@@ -797,7 +795,7 @@ psu_channels[0].current_setpoint.value.raw = 1500;// = 2047; // observed an offs
 // to-do / to analyze: 1) absolute offset calibration
 //                     2) non linear behaviour correction (do measurements)
 
-void psu_init(void)
+void psu_app_init(void)
 {
     /* System init */
     system_init();
@@ -806,7 +804,7 @@ void psu_init(void)
     init_io();
 
     /* Init ranges and precisions */
-    init_psu();
+    psu_init();
 
     /* Default state for the display */
     display_clear_all();
@@ -827,13 +825,13 @@ __attribute__((always_inline)) void inline psu_app(void)
 {
 
     /* Periodic functions */
-    input_processing();
+    psu_input_processing();
 
     /* GUI */
-    gui_screen();
+    gui_main_screen();
 
     /* Output processing */
-    output_processing();
+    psu_output_processing();
 
     /* Display handler */
     display_periodic();

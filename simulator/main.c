@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
         g_serial_port_path = argv[2];
 
         /* one-time initialization */
-        psu_init();
+        psu_app_init();
 
         /* start the thread */
         pthread_create(&main_thread, NULL, main_thread_worker, NULL);

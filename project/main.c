@@ -31,7 +31,7 @@
 int main(void)
 {
     /* one-time init */
-    psu_init();
+    psu_app_init();
 
     /* main loop */
     while (1)
