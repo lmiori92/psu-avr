@@ -718,15 +718,15 @@ static void psu_output_processing(void)
 
 }
 
-static const char *digit_to_char = "0123456789";
+//static const char *digit_to_char = "0123456789";
 
-static void gui_display_number(uint16_t value)
-{
-    display_write_char(digit_to_char[(value / 1000) % 10]);
-    display_write_char(digit_to_char[(value / 100) % 10]);
-    display_write_char(digit_to_char[(value / 10) % 10]);
-    display_write_char(digit_to_char[value % 10]);
-}
+//static void gui_display_number(uint16_t value)
+//{
+//    display_write_char(digit_to_char[(value / 1000) % 10]);
+//    display_write_char(digit_to_char[(value / 100) % 10]);
+//    display_write_char(digit_to_char[(value / 10) % 10]);
+//    display_write_char(digit_to_char[value % 10]);
+//}
 
 static void gui_print_measurement(e_psu_setpoint type, uint16_t value, bool selected)
 {
@@ -744,27 +744,27 @@ static void gui_print_measurement(e_psu_setpoint type, uint16_t value, bool sele
     if (type == PSU_SETPOINT_VOLTAGE)
     {
         /* Display 10s */
-        display_write_char(digit_to_char[(value / 10000) % 10]);
+        display_write_char('0' + ((value / 10000) % 10));
     }
     else
     {
         /* No 10s */
     }
 
-    display_write_char(digit_to_char[(value / 1000) % 10]);
+    display_write_char('0' + ((value / 1000) % 10));
     display_write_char('.');
 
     switch(type)
     {
     case PSU_SETPOINT_VOLTAGE:
-        display_write_char(digit_to_char[(value / 100) % 10]);
-        display_write_char(digit_to_char[(value / 10) % 10]);
+        display_write_char('0' + ((value / 100) % 10));
+        display_write_char('0' + ((value / 10) % 10));
         display_write_char('V');
         break;
     case PSU_SETPOINT_CURRENT:
-        display_write_char(digit_to_char[(value / 100) % 10]);
-        display_write_char(digit_to_char[(value / 10) % 10]);
-        display_write_char(digit_to_char[value % 10]);
+        display_write_char('0' + ((value / 100) % 10));
+        display_write_char('0' + ((value / 10) % 10));
+        display_write_char('0' + (value % 10));
         display_write_char('A');
         break;
     }
@@ -810,14 +810,14 @@ static void gui_debug_screen(void)
     display_set_cursor(0, 0);
     display_clean();
 
-    gui_display_number(adc_get(ADC_0));
+    display_write_number(adc_get(ADC_0), true);
     display_write_string(" - ");
-    gui_display_number(adc_get(ADC_1));
+    display_write_number(adc_get(ADC_1), true);
 
     display_set_cursor(1, 0);
-    gui_display_number(application.cycle_time);
+    display_write_number(application.cycle_time, true);
     display_write_string(" - ");
-    gui_display_number(cnt);
+    display_write_number(cnt, true);
 }
 
 /*

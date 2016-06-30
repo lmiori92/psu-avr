@@ -164,3 +164,17 @@ void display_write_stringf(char *fmt, ...)
     (void)fmt;
 #endif
 }
+
+void display_write_number(uint16_t number, bool leading_zeros)
+{
+    bool not_zero = false;
+    uint16_t tmp;
+    uint16_t i;
+
+    for (i = 10000U; i > 0U; i /= 10U)
+    {
+        tmp = (number / i) % 10U;
+        if ((leading_zeros == true) || (tmp != 0U)) not_zero = true;
+        if (not_zero == true) display_write_char('0' + tmp);
+    }
+}
