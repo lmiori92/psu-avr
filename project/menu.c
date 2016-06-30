@@ -34,7 +34,7 @@ static char* BOOL_LABELS[2] = { "NO", "YES" };
 static uint8_t BOOL_VALUES[2] = { (uint8_t)false, (uint8_t)true };
 
 /** Static declarations **/
-static void menu_extra_display(t_menu_item *item);
+static void menu_extra_display(t_menu_extra *extra);
 static void menu_index_edit(t_menu_state *state, uint8_t count, bool increment);
 static void menu_extra_edit(t_menu_item *item, bool increment);
 
@@ -47,43 +47,37 @@ void menu_init_bool_list(t_menu_extra_list *extra)
 
 void menu_init(t_menu_state *state, t_menu_item *item, uint8_t count)
 {
-    uint8_t i;
-    for (i = 0; i < count; i++)
-    {
-        /* item not selected initially */
-        item->state = MENU_NOT_SELECTED;
-    }
+    state->state = MENU_NOT_SELECTED;
     state->index = 0;
-    state->index_prev = 0;
 }
 
-static void menu_extra_display(t_menu_item *item)
+static void menu_extra_display(t_menu_extra *extra)
 {
 
     uint8_t u8_tmp;
     uint8_t u16_tmp;
     t_menu_extra_list *ext_ptr_tmp;
 
-    if ((item->extra != NULL) && (item->extra->ptr != NULL))
+    if ((extra != NULL) && (extra->ptr != NULL))
     {
         /* dereference and operate the pointer based on the defined type */
-        switch(item->extra->type)
+        switch(extra->type)
         {
             case MENU_TYPE_LIST:
                 /* 8-bit array index */
                 /* display the "enum-like" element */
-                ext_ptr_tmp = (t_menu_extra_list*)(item->extra->ptr);
+                ext_ptr_tmp = (t_menu_extra_list*)(extra->ptr);
                 u8_tmp = *(ext_ptr_tmp->ptr);
                 display_write_string(ext_ptr_tmp->labels[u8_tmp]);
                 break;
             case MENU_TYPE_NUMERIC_8:
                 /* 8-bit number */
-                u8_tmp = (*((uint8_t*)item->extra->ptr));
-                display_write_number((uint16_t)u8_tmp, false);
+                u8_tmp = (*((uint8_t*)extra->ptr));
+                display_write_number((uint16_t)u8_tmp, true);
                 break;
             case MENU_TYPE_NUMERIC_16:
                 /* 16-bit number */
-                u16_tmp = (*((uint16_t*)item->extra->ptr));
+                u16_tmp = (*((uint16_t*)extra->ptr));
                 display_write_number(u16_tmp, false);
                 break;
             default:
@@ -100,18 +94,18 @@ static void menu_index_edit(t_menu_state *state, uint8_t count, bool increment)
         if (increment == true)
         {
             /* increment - "menu down" */
-            if (state->index < (count - 1))
+            if (state->index < (count - 1U))
             {
-                state->index_prev = state->index;  /* previous value */
+                state->prev = state->index;
                 state->index++;                    /* increment value */
             }
         }
         else
         {
             /* decrement - "menu up" */
-            if (state->index > 1U)
+            if (state->index > 0U)
             {
-                state->index_prev = state->index;  /* previous value */
+                state->prev = state->index;
                 state->index--;                    /* increment value */
             }
         }
@@ -156,25 +150,40 @@ and possibly extra data like ON-OFF labels or numeric values.
 void menu_display(t_menu_state *state, t_menu_item *item, uint8_t count)
 {
 
-    t_menu_item *item_ptr;
+    uint8_t id1;
+    uint8_t id2;
 
-    /* for faster execution time, work with the pointer of the items */
-    item_ptr = item;    
+    display_clean();
 
     /* selected item arrow display */
-    display_set_cursor(state->index % 2, 0);
+    if (state->index > state->prev)
+    {
+        /* "down" */
+        display_set_cursor(1, 0);
+    }
+    else
+    {
+        /* "up" */
+        display_set_cursor(0, 0);
+    }
+
     display_write_char(0x7EU);
 
-    /* display labels and extra data */
+    id1 = state->prev > state->index ? state->index : state->prev;
+    id2 = state->prev > state->index ? state->prev : state->index;
 
-    display_set_cursor(0, 1);                                       /* cursor right after the (possible) arrow */
-    display_write_string((item_ptr + state->index)->label);         /* label */
-    display_set_cursor(0, 2);
-    menu_extra_display(item);
-    display_set_cursor(0, 1);                                       /* cursor right after the (possible) arrow */
-    display_write_string((item_ptr + state->index_prev)->label);    /* label */
-    display_set_cursor(0, 2);
-    menu_extra_display(item);
+    /* display labels and extra data */
+    /* for faster execution time, work with the pointer of the items */
+
+    display_set_cursor(0U, 1U);                                       /* cursor right after the (possible) arrow */
+    display_write_string((item + id1)->label);         /* label */
+    display_advance_cursor(1U);
+    menu_extra_display((item + id1)->extra);
+    display_set_cursor(1U, 1U);                                       /* cursor right after the (possible) arrow */
+    display_write_string((item + id2)->label);    /* label */
+    display_set_cursor(1U, 2U);
+    display_advance_cursor(1U);
+    menu_extra_display((item + id2)->extra);
 
 }
 
@@ -187,18 +196,18 @@ void menu_event(e_menu_event event, t_menu_state *state, t_menu_item *item, uint
             break;
         case MENU_EVENT_CLICK:
             /* if a simple entry, do nothing (probably changing menu anyhow) */
-            if (item->state == MENU_NOT_SELECTED) item->state = MENU_SELECTED;
-            else item->state = MENU_SELECTED;
+            if (state->state == MENU_NOT_SELECTED) state->state = MENU_SELECTED;
+            else state->state = MENU_SELECTED;
             break;
         case MENU_EVENT_CLICK_LONG:
             /* NOOP for the moment */
             break;
         case MENU_EVENT_LEFT:
-            if (item->state == MENU_SELECTED) menu_extra_edit(item, false);
+            if (state->state == MENU_SELECTED) menu_extra_edit(item, false);
             else menu_index_edit(state, count, false);
             break;
         case MENU_EVENT_RIGHT:
-            if (item->state == MENU_SELECTED) menu_extra_edit(item, true);
+            if (state->state == MENU_SELECTED) menu_extra_edit(item, true);
             else menu_index_edit(state, count, true);
             break;
         default:

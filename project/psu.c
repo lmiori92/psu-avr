@@ -25,6 +25,7 @@
 #include "encoder.h"
 #include "lib.h"
 #include "keypad.h"
+#include "menu.h"
 #include "pwm.h"
 #include "psu.h"
 #include "uart.h"
@@ -527,10 +528,14 @@ static void psu_init(void)
 
 }
 
+#warning "JUST FOR TEST; REMOVE AFTERWARDS"
+
+
 static void encoder_event_callback(e_enc_event event, uint32_t delta_t)
 {
     uint8_t i;
     uint16_t diff;
+
     if (event == ENC_EVT_CLICK_DOWN)
     {
         /* Click event */
@@ -548,6 +553,14 @@ static void encoder_event_callback(e_enc_event event, uint32_t delta_t)
     }
     else
     {
+        if (event == ENC_EVT_LEFT)
+        {
+            keypad_set_input(BUTTON_LEFT, false);
+        }
+        else if (event == ENC_EVT_RIGHT)
+        {
+            keypad_set_input(BUTTON_LEFT, false);
+        }
         /* Rotation event */
         for (i = 0; i < SMOOTHING_SIZE; i++)
         {
@@ -556,12 +569,10 @@ static void encoder_event_callback(e_enc_event event, uint32_t delta_t)
                 diff = smoothing_result[i];
                 if (event == ENC_EVT_LEFT)
                 {
-                    keypad_set_input(BUTTON_LEFT, false);
                     lib_diff(&application.selected_setpoint_ptr->value.raw, diff);
                 }
                 else if (event == ENC_EVT_RIGHT)
                 {
-                    keypad_set_input(BUTTON_RIGHT, false);
                     lib_sum(&application.selected_setpoint_ptr->value.raw, application.selected_setpoint_ptr->scale.max, diff);
                 }
                 break;
@@ -718,16 +729,6 @@ static void psu_output_processing(void)
 
 }
 
-//static const char *digit_to_char = "0123456789";
-
-//static void gui_display_number(uint16_t value)
-//{
-//    display_write_char(digit_to_char[(value / 1000) % 10]);
-//    display_write_char(digit_to_char[(value / 100) % 10]);
-//    display_write_char(digit_to_char[(value / 10) % 10]);
-//    display_write_char(digit_to_char[value % 10]);
-//}
-
 static void gui_print_measurement(e_psu_setpoint type, uint16_t value, bool selected)
 {
 
@@ -854,6 +855,7 @@ void psu_app_init(void)
 
     timer_delay_ms(2000);   /* splashscreen! */
 
+    display_clear_all();
    // DBG_CONFIG;
     /* 10 kHz PID routine handler */
 //    OCR0B = 200;
@@ -907,14 +909,44 @@ __attribute__((always_inline)) void inline psu_app(void)
 
     /* GUI */
     e_key_event evt;
+    e_menu_event menu_evt = MENU_EVENT_NONE;
+    static uint8_t asd;
 
     evt = keypad_clicked(BUTTON_SELECT);
+
+    {
+        switch(evt)
+        {
+            case KEY_NONE:
+                break;
+            case KEY_CLICK:
+                menu_evt = MENU_EVENT_RIGHT;
+                break;
+            case KEY_HOLD:
+                menu_evt = MENU_EVENT_CLICK;
+                break;
+            default:
+                break;
+        }
+    }
 
     if (evt == KEY_CLICK)
     {
         psu_advance_selection();
     }
 
+    static t_menu_state menu_state = {0, 1, MENU_NOT_SELECTED};
+    static t_menu_extra menu_extra = { &asd, MENU_TYPE_NUMERIC_8};
+    static t_menu_item menu_item[4] = { {"A", &menu_extra },
+                                        {"B", NULL },
+                                        {"C", NULL },
+                                        {"D", NULL }
+                                        };
+
+    menu_display(&menu_state, &menu_item[0], 4U);
+    menu_event(menu_evt, &menu_state, &menu_item[0], 4U);
+
+/*
     if (debug == true)
     {
         if (evt == KEY_HOLD)
@@ -934,7 +966,7 @@ __attribute__((always_inline)) void inline psu_app(void)
         }
         gui_main_screen();
     }
-
+*/
 
     /* Output processing */
     psu_output_processing();

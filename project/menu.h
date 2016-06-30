@@ -77,14 +77,14 @@ typedef struct
 {
     char*               label;  /**< Item has this string as label */
     t_menu_extra*       extra;  /**< When != NULL an extra is appended, depending on the type of menu */
-    e_menu_item_state   state;  /**< Item state */
 } t_menu_item;
 
 /** Structure for the current menu state */
 typedef struct
 {
     uint8_t index;              /**< Selected menu item */
-    uint8_t index_prev;         /**< Previously selected menu item */
+    uint8_t prev;              /**< Selected menu item */
+    e_menu_item_state   state;  /**< Item state */
 } t_menu_state;
 
 /**  EXTERNAL LINKAGE FUNCTIONS **/

@@ -13,7 +13,7 @@ LIBS=-lm -lncurses -lpthread
 _DEPS = psu.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ = lib.o remote.o display.o psu.o keypad.o pid.o
+_OBJ = lib.o remote.o display.o psu.o keypad.o pid.o menu.o
 OBJ = $(patsubst %,$(SDIR)/%,$(_OBJ))
 
 #special case for the simulator

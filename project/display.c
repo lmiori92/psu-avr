@@ -171,10 +171,11 @@ void display_write_number(uint16_t number, bool leading_zeros)
     uint16_t tmp;
     uint16_t i;
 
-    for (i = 10000U; i > 0U; i /= 10U)
+    for (i = 10000U; i > 10U; i /= 10U)
     {
         tmp = (number / i) % 10U;
         if ((leading_zeros == true) || (tmp != 0U)) not_zero = true;
         if (not_zero == true) display_write_char('0' + tmp);
     }
+    display_write_char('0' + (number % 10));
 }

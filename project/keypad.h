@@ -62,6 +62,7 @@ void keypad_init(void);
 e_key_event keypad_clicked(e_key key);
 
 void keypad_set_input(e_key key, bool value);
+bool keypad_get_input(e_key key);
 void keypad_periodic(uint32_t timestamp);
 
 #endif /* _KEYPAD_H_ */

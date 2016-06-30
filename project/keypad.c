@@ -45,6 +45,11 @@ void keypad_set_input(e_key key, bool value)
     keypad.input[key] = value;
 }
 
+bool keypad_get_input(e_key key)
+{
+    return keypad.input[key];
+}
+
 e_key_event keypad_clicked(e_key key)
 {
     return keypad.buttons[key];
