@@ -9,6 +9,8 @@ C_SRCS += \
 ../keypad.c \
 ../lib.c \
 ../main.c \
+../menu.c \
+../pid.c \
 ../psu.c \
 ../remote.c 
 
@@ -16,6 +18,7 @@ O_SRCS += \
 ../display.o \
 ../keypad.o \
 ../lib.o \
+../pid.o \
 ../psu.o \
 ../remote.o 
 
@@ -25,6 +28,8 @@ OBJS += \
 ./keypad.o \
 ./lib.o \
 ./main.o \
+./menu.o \
+./pid.o \
 ./psu.o \
 ./remote.o 
 
@@ -34,6 +39,8 @@ C_DEPS += \
 ./keypad.d \
 ./lib.d \
 ./main.d \
+./menu.d \
+./pid.d \
 ./psu.d \
 ./remote.d 
 
@@ -42,7 +49,7 @@ C_DEPS += \
 %.o: ../%.c
 	@echo 'Building file: $<'
 	@echo 'Invoking: AVR Compiler'
-	avr-gcc -I"/home/lorenzo/git/psu-avr/project" -Wall -g2 -gstabs -Os -fpack-struct -fshort-enums -ffunction-sections -fdata-sections -std=gnu99 -funsigned-char -funsigned-bitfields -mmcu=atmega328p -DF_CPU=16000000UL -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -c -o "$@" "$<"
+	avr-gcc -I"/home/lorenzo/git/psu-avr/project" -Wall -g2 -gstabs -O2 -fpack-struct -fshort-enums -ffunction-sections -fdata-sections -std=gnu99 -funsigned-char -funsigned-bitfields -mmcu=atmega328p -DF_CPU=16000000UL -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -c -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

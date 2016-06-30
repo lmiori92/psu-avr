@@ -32,6 +32,7 @@
 #include "adc.h"
 #include "pwm.h"
 #include "lib.h"
+#include "pid.h"
 
 #include <stdint.h>
 
@@ -74,6 +75,7 @@ typedef struct _t_channel
     t_measurement      current_readout;     /**< Current measurement for the channel */
     e_adc_channel  current_adc_channel;     /**< Current measurement ADC channel */
     e_pwm_channel  current_pwm_channel;     /**< Current output PWM channel */
+    pidData_t       current_limit_pid;      /**< Current limit mode PID controller state */
 } t_psu_channel;
 
 typedef enum _e_psu_channels

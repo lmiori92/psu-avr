@@ -57,7 +57,7 @@ void display_init(void)
     display_set_cursor(0, 0);
 }
 
-void display_clear(uint8_t lines)
+void display_clear(uint8_t lines, bool force)
 {
     uint8_t i,j;
     for (i = 0; i < DISPLAY_LINE_NUM; i++)
@@ -67,7 +67,7 @@ void display_clear(uint8_t lines)
             for (j = 0; j < DISPLAY_CHAR_NUM; j++)
             {
                 display_buffer[i][j].character = (uint8_t)' ';          /* space in the current buffer */
-                display_buffer[i][j].character_prev = (uint8_t)'\0';    /* zero the previous buffer to force a complete redraw */
+                if (force == true) display_buffer[i][j].character_prev = (uint8_t)'\0';    /* zero the previous buffer to force a complete redraw */
             }
         }
     }
@@ -75,7 +75,12 @@ void display_clear(uint8_t lines)
 
 void display_clear_all(void)
 {
-    display_clear(0xFFU);
+    display_clear(0xFFU, true);
+}
+
+void display_clean(void)
+{
+    display_clear(0xFFU, false);
 }
 
 void display_periodic(void)

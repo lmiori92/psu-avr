@@ -1,6 +1,7 @@
 IDIR =../project
-CC=gcc
+CC=gcc $(sdl-config --static-libs) -lm
 CFLAGS=-I$(IDIR) -g
+LDFLAGS=-lSDL2 $(sdl-config --static-libs) -lm
 
 ODIR=.
 SDIR=../project
@@ -12,7 +13,7 @@ LIBS=-lm -lncurses -lpthread
 _DEPS = psu.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ = lib.o remote.o display.o psu.o keypad.o
+_OBJ = lib.o remote.o display.o psu.o keypad.o pid.o
 OBJ = $(patsubst %,$(SDIR)/%,$(_OBJ))
 
 #special case for the simulator
@@ -21,10 +22,10 @@ OBJ += main.o display_config.o $(HALDIR)/display_hal_ncurses.o $(HALDIR)/uart.o 
 all: simulator
 
 $(ODIR)/%.o: %.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -c -o $@ $< $(CFLAGS) ${LDFLAGS}
 
 simulator: $(OBJ)
-	gcc -o $@ $^ $(CFLAGS) $(LIBS)
+	gcc -o $@ $^ $(CFLAGS) $(LIBS) ${LDFLAGS}
 
 .PHONY: clean
 

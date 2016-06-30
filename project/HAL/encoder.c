@@ -126,6 +126,7 @@ ISR(PCINT2_vect)
             g_encoder[i].raw = 0;
             g_encoder[i].pin_raw = 0;
             g_encoder[i].tick = g_timestamp;
+            g_encoder[i].evt_cb(ENC_EVT_TIMEOUT, g_encoder[i].delta_t);
         }
         else if (g_encoder[i].raw > 2)
         {

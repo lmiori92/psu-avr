@@ -40,11 +40,11 @@ static void ncurses_display_refresh(void)
 
 static void ncurses_display_hal_init(void)
 {
-    initscr(); /* Start curses mode */
+//    initscr(); /* Start curses mode */
 
-    erase();
+  //  erase();
 
-    ncurses_display_refresh();
+    //ncurses_display_refresh();
 
 }
 

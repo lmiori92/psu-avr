@@ -44,7 +44,7 @@
  *
  * */
 
-uint32_t g_timestamp;           /**< Global time-keeping variable (resolution: 100us) */
+volatile uint32_t g_timestamp;           /**< Global time-keeping variable (resolution: 100us) */
 
 /**
  * timer_init

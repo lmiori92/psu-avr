@@ -31,7 +31,7 @@
 
 /*#define TIMER_DEBUG*/
 
-extern uint32_t g_timestamp;    /**< Time-keeping in us. Resolution is 100us TICK */
+extern volatile uint32_t g_timestamp;    /**< Time-keeping in us. Resolution is 100us TICK */
 
 void timer_init(void);
 void timer_delay_ms(uint16_t ms);

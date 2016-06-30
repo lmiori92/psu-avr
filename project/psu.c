@@ -94,6 +94,7 @@ typedef struct
     t_measurement  *selected_setpoint_ptr;      /**< Keep a reference to the selected PSU for optimization in the ISR callback */
 
     bool           master_or_slave;             /**< True: is a master; False: is a slave */
+    uint32_t       cycle_time;                  /**< Cycle Time (main application thread) */
 } t_application;
 
 static t_application application;
@@ -507,6 +508,8 @@ static void psu_init_channel(t_psu_channel *channel, e_psu_channel psu_ch, bool 
     channel->current_setpoint.scale.max = 2048;
     channel->current_setpoint.scale.min_scaled = 0;
     channel->current_setpoint.scale.max_scaled = pwm_get_resolution(channel->current_pwm_channel);
+
+    pid_Init(1,0,0, &channel->current_limit_pid);
 }
 
 static void psu_init(void)
@@ -531,12 +534,17 @@ static void encoder_event_callback(e_enc_event event, uint32_t delta_t)
     if (event == ENC_EVT_CLICK_DOWN)
     {
         /* Click event */
-        keypad_set_input(BUTTON_SELECT, true);
+        keypad_set_input(BUTTON_SELECT, false);
     }
     else if (event == ENC_EVT_CLICK_UP)
     {
         /* Release event */
-        keypad_set_input(BUTTON_SELECT, false);
+        keypad_set_input(BUTTON_SELECT, true);
+    }
+    else if (event == ENC_EVT_TIMEOUT)
+    {
+        keypad_set_input(BUTTON_LEFT, true);
+        keypad_set_input(BUTTON_RIGHT, true);
     }
     else
     {
@@ -548,10 +556,12 @@ static void encoder_event_callback(e_enc_event event, uint32_t delta_t)
                 diff = smoothing_result[i];
                 if (event == ENC_EVT_LEFT)
                 {
+                    keypad_set_input(BUTTON_LEFT, false);
                     lib_diff(&application.selected_setpoint_ptr->value.raw, diff);
                 }
                 else if (event == ENC_EVT_RIGHT)
                 {
+                    keypad_set_input(BUTTON_RIGHT, false);
                     lib_sum(&application.selected_setpoint_ptr->value.raw, application.selected_setpoint_ptr->scale.max, diff);
                 }
                 break;
@@ -645,9 +655,11 @@ static void psu_input_processing(void)
         if (psu_channels[i].remote_or_local == false)
         {
             /* Local channel */
-            psu_adc_processing(&psu_channels[i]);
+//            psu_adc_processing(&psu_channels[i]);
+            /* handled in the high priority routine */
+
             /* Heartbeat */
-            psu_channels->heartbeat_timestamp = g_timestamp;
+            psu_channels[i].heartbeat_timestamp = g_timestamp;
 
             if ((psu_channels[i].master_or_slave == false) && (psu_channels[i].node_id > 0U))
             {
@@ -668,9 +680,6 @@ static void psu_input_processing(void)
 
     }
 
-    /* Keypad */
-    keypad_periodic(g_timestamp);
-
 }
 
 static void psu_output_processing(void)
@@ -687,7 +696,10 @@ static void psu_output_processing(void)
             if (psu_channels[i].remote_or_local == false)
             {
                 /* Local channel */
-                psu_pwm_processing(&psu_channels[i]);
+
+                /* handled in the high priority routine */
+
+//                psu_pwm_processing(&psu_channels[i]);
             }
             else
             {
@@ -706,10 +718,18 @@ static void psu_output_processing(void)
 
 }
 
+static const char *digit_to_char = "0123456789";
+
+static void gui_display_number(uint16_t value)
+{
+    display_write_char(digit_to_char[(value / 1000) % 10]);
+    display_write_char(digit_to_char[(value / 100) % 10]);
+    display_write_char(digit_to_char[(value / 10) % 10]);
+    display_write_char(digit_to_char[value % 10]);
+}
+
 static void gui_print_measurement(e_psu_setpoint type, uint16_t value, bool selected)
 {
-
-    static const char *digit_to_char = "0123456789";
 
     if (selected == true)
     {
@@ -750,15 +770,13 @@ static void gui_print_measurement(e_psu_setpoint type, uint16_t value, bool sele
     }
 
 }
+static bool debug = false;
+static uint8_t cnt = 0;
+static void gui_debug_screen(void);
 
 static void gui_main_screen(void)
 {
     bool selected;
-
-    if (keypad_clicked(BUTTON_SELECT) == true)
-    {
-        psu_advance_selection();
-    }
 
     /* Line 1 */
     display_set_cursor(0, 0);
@@ -784,6 +802,22 @@ static void gui_main_screen(void)
         display_write_char('S');
     else
         display_write_char(psu_channels[PSU_CHANNEL_1].state == PSU_STATE_OPERATIONAL ? '1' : '0');
+}
+
+static void gui_debug_screen(void)
+{
+
+    display_set_cursor(0, 0);
+    display_clean();
+
+    gui_display_number(adc_get(ADC_0));
+    display_write_string(" - ");
+    gui_display_number(adc_get(ADC_1));
+
+    display_set_cursor(1, 0);
+    gui_display_number(application.cycle_time);
+    display_write_string(" - ");
+    gui_display_number(cnt);
 }
 
 /*
@@ -814,21 +848,93 @@ void psu_app_init(void)
     display_write_string("IlLorenz");
     display_set_cursor(1, 0);
     display_write_string("PSU AVR");
+    display_write_string((application.master_or_slave == TRUE) ? " (MASTER)" : " (SLAVE)");
 
     display_periodic();     /* call it at least once to clear the display */
 
     timer_delay_ms(2000);   /* splashscreen! */
 
+   // DBG_CONFIG;
+    /* 10 kHz PID routine handler */
+//    OCR0B = 200;
+
+    /* enable output compare match interrupt on timer B */
+ //   TIMSK0 |= (1 << OCIE0B);
+
 }
+
+//ISR(TIMER0_COMPB_vect)
+//{
+//    uint8_t i;
+//DBG_HIGH;
+//    for (i = 0; i < (uint8_t)PSU_CHANNEL_NUM; i++)
+//    {
+//        if (psu_channels[i].remote_or_local == false)
+//        {
+//            /* Local channel */
+//
+//            /* ADC readout */
+//            psu_adc_processing(&psu_channels[i]);
+//
+//            /* PID controller */
+//            psu_channels[i].current_setpoint.value.scaled = pid_Controller(psu_channels[i].current_setpoint.value.scaled,
+//                                                                           psu_channels[i].current_readout.value.raw,
+//                                                                           &psu_channels[i].current_limit_pid);
+//
+//            /* PWM */
+//            psu_pwm_processing(&psu_channels[i]);
+//
+//        }
+//        else
+//        {
+//            /* not timer critical -> handled in the low priority thread */
+//        }
+//    }
+//    DBG_LOW;
+//}
 
 __attribute__((always_inline)) void inline psu_app(void)
 {
 
+    static volatile uint32_t start;
+
+    start = g_timestamp;
     /* Periodic functions */
     psu_input_processing();
 
+    /* Keypad */
+    keypad_periodic(g_timestamp);
+
     /* GUI */
-    gui_main_screen();
+    e_key_event evt;
+
+    evt = keypad_clicked(BUTTON_SELECT);
+
+    if (evt == KEY_CLICK)
+    {
+        psu_advance_selection();
+    }
+
+    if (debug == true)
+    {
+        if (evt == KEY_HOLD)
+        {
+            debug = false;
+        }
+        if (keypad_clicked(BUTTON_RIGHT) == KEY_CLICK) cnt++;
+        if (keypad_clicked(BUTTON_LEFT) == KEY_CLICK) cnt--;
+        gui_debug_screen();
+    }
+
+    else
+    {
+        if (evt == KEY_HOLD)
+        {
+            debug = true;
+        }
+        gui_main_screen();
+    }
+
 
     /* Output processing */
     psu_output_processing();
@@ -843,5 +949,7 @@ __attribute__((always_inline)) void inline psu_app(void)
     /* Debug the timer */
     timer_debug();
 #endif
+
+    application.cycle_time = g_timestamp - start;
 
 }

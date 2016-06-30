@@ -12,12 +12,12 @@
 #define SHIFT_PORT          PORTB  /**< Shift PINs PORT */
 #define SHIFT_DDR           DDRB   /**< Shift PINs DDR */
 
-#define SHIFT_LATCH_LOW      SHIFT_PORT &= ~(1 << SHIFT_LATCH_PIN);asm("nop")  /**< latch LOW */
-#define SHIFT_LATCH_HIGH     SHIFT_PORT |=  (1 << SHIFT_LATCH_PIN);asm("nop")  /**< latch HIGH */
-#define SHIFT_CLOCK_LOW      SHIFT_PORT &= ~(1 << SHIFT_CLOCK_PIN);asm("nop")  /**< clock LOW */
-#define SHIFT_CLOCK_HIGH     SHIFT_PORT |=  (1 << SHIFT_CLOCK_PIN);asm("nop")  /**< clock HIGH */
-#define SHIFT_DATA_LOW       SHIFT_PORT &= ~(1 << SHIFT_DATA_PIN);asm("nop")   /**< data LOW */
-#define SHIFT_DATA_HIGH      SHIFT_PORT |=  (1 << SHIFT_DATA_PIN);asm("nop")   /**< data HIGH */
+#define SHIFT_LATCH_LOW      SHIFT_PORT &= ~(1 << SHIFT_LATCH_PIN);  /**< latch LOW */
+#define SHIFT_LATCH_HIGH     SHIFT_PORT |=  (1 << SHIFT_LATCH_PIN);  /**< latch HIGH */
+#define SHIFT_CLOCK_LOW      SHIFT_PORT &= ~(1 << SHIFT_CLOCK_PIN);  /**< clock LOW */
+#define SHIFT_CLOCK_HIGH     SHIFT_PORT |=  (1 << SHIFT_CLOCK_PIN);  /**< clock HIGH */
+#define SHIFT_DATA_LOW       SHIFT_PORT &= ~(1 << SHIFT_DATA_PIN);   /**< data LOW */
+#define SHIFT_DATA_HIGH      SHIFT_PORT |=  (1 << SHIFT_DATA_PIN);   /**< data HIGH */
 
 static uint8_t hd44780_virtual_port = 0U;
 
@@ -126,7 +126,7 @@ static void hd44780_write_nibble(uint8_t nibble)
     shift_out(HD44780_PORT);
     HD44780_PORT &= ~(1 << HD44780_EN);
     shift_out(HD44780_PORT);
-    _delay_us(40);
+    _delay_us(1);   /* adjust if needed! */
 }
 
 static void hd44780_transmit(uint8_t data, uint8_t tx_mode)

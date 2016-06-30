@@ -81,8 +81,9 @@ typedef struct
 
 /* Display APIs */
 void display_init(void);
-void display_clear(uint8_t lines);
+void display_clear(uint8_t lines, bool force);
 void display_clear_all(void);
+void display_clean(void);
 void display_periodic(void);
 void display_set_cursor(uint8_t line, uint8_t chr);
 void display_enable_cursor(bool visible);
