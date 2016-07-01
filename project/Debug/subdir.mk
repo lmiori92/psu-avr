@@ -18,6 +18,7 @@ O_SRCS += \
 ../display.o \
 ../keypad.o \
 ../lib.o \
+../menu.o \
 ../pid.o \
 ../psu.o \
 ../remote.o 

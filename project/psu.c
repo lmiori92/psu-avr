@@ -103,6 +103,21 @@ static t_application application;
 /* Remote application level buffers */
 static t_remote_datagram_buffer remote_dgram_rcv_copy;
 
+/* MENU (testing) */
+//static uint8_t encoder_left_queue;
+//static uint8_t encoder_right_queue;
+    static uint8_t asd = 234;
+    static t_menu_state menu_state = {0, 1, MENU_NOT_SELECTED};
+static uint8_t bool_values[2] = { 1, 0 };
+static char* bool_labels[2] = { "YES", "NO" };
+    static t_menu_extra_list menu_extra_3 = { 2U, 0U, bool_labels, bool_values };
+
+    static t_menu_item menu_item[4] = { {"A", (void*)&asd, MENU_TYPE_NUMERIC_8 },
+                                        {"B", NULL, MENU_TYPE_NONE },
+                                        {"C", (void*)&application.cycle_time, MENU_TYPE_NUMERIC_16 },
+                                        {"D", (void*)&menu_extra_3, MENU_TYPE_LIST }
+                                        };
+
 static void uart_received(uint8_t byte)
 {
 
@@ -528,9 +543,6 @@ static void psu_init(void)
 
 }
 
-#warning "JUST FOR TEST; REMOVE AFTERWARDS"
-
-
 static void encoder_event_callback(e_enc_event event, uint32_t delta_t)
 {
     uint8_t i;
@@ -546,20 +558,15 @@ static void encoder_event_callback(e_enc_event event, uint32_t delta_t)
         /* Release event */
         keypad_set_input(BUTTON_SELECT, true);
     }
-    else if (event == ENC_EVT_TIMEOUT)
-    {
-        keypad_set_input(BUTTON_LEFT, true);
-        keypad_set_input(BUTTON_RIGHT, true);
-    }
     else
     {
         if (event == ENC_EVT_LEFT)
         {
-            keypad_set_input(BUTTON_LEFT, false);
+            menu_event(MENU_EVENT_LEFT);
         }
         else if (event == ENC_EVT_RIGHT)
         {
-            keypad_set_input(BUTTON_LEFT, false);
+            menu_event(MENU_EVENT_RIGHT);
         }
         /* Rotation event */
         for (i = 0; i < SMOOTHING_SIZE; i++)
@@ -910,24 +917,21 @@ __attribute__((always_inline)) void inline psu_app(void)
     /* GUI */
     e_key_event evt;
     e_menu_event menu_evt = MENU_EVENT_NONE;
-    static uint8_t asd;
 
     evt = keypad_clicked(BUTTON_SELECT);
 
+    switch(evt)
     {
-        switch(evt)
-        {
-            case KEY_NONE:
-                break;
-            case KEY_CLICK:
-                menu_evt = MENU_EVENT_RIGHT;
-                break;
-            case KEY_HOLD:
-                menu_evt = MENU_EVENT_CLICK;
-                break;
-            default:
-                break;
-        }
+    case KEY_NONE:
+        break;
+    case KEY_CLICK:
+        menu_evt = MENU_EVENT_CLICK;
+        break;
+    case KEY_HOLD:
+        menu_evt = MENU_EVENT_CLICK_LONG;
+        break;
+    default:
+        break;
     }
 
     if (evt == KEY_CLICK)
@@ -935,16 +939,9 @@ __attribute__((always_inline)) void inline psu_app(void)
         psu_advance_selection();
     }
 
-    static t_menu_state menu_state = {0, 1, MENU_NOT_SELECTED};
-    static t_menu_extra menu_extra = { &asd, MENU_TYPE_NUMERIC_8};
-    static t_menu_item menu_item[4] = { {"A", &menu_extra },
-                                        {"B", NULL },
-                                        {"C", NULL },
-                                        {"D", NULL }
-                                        };
-
-    menu_display(&menu_state, &menu_item[0], 4U);
-    menu_event(menu_evt, &menu_state, &menu_item[0], 4U);
+    menu_set(&menu_state, &menu_item[0], 4U);
+    menu_display();
+    menu_event(menu_evt);
 
 /*
     if (debug == true)

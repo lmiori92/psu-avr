@@ -34,9 +34,14 @@ static char* BOOL_LABELS[2] = { "NO", "YES" };
 static uint8_t BOOL_VALUES[2] = { (uint8_t)false, (uint8_t)true };
 
 /** Static declarations **/
-static void menu_extra_display(t_menu_extra *extra);
+static void menu_extra_display(void *extra, e_item_type type);
 static void menu_index_edit(t_menu_state *state, uint8_t count, bool increment);
 static void menu_extra_edit(t_menu_item *item, bool increment);
+
+/* State */
+static t_menu_state *g_state;
+static t_menu_item  *g_item;
+static uint8_t       g_count;
 
 void menu_init_bool_list(t_menu_extra_list *extra)
 {
@@ -51,33 +56,33 @@ void menu_init(t_menu_state *state, t_menu_item *item, uint8_t count)
     state->index = 0;
 }
 
-static void menu_extra_display(t_menu_extra *extra)
+static void menu_extra_display(void *extra, e_item_type type)
 {
 
     uint8_t u8_tmp;
-    uint8_t u16_tmp;
+    uint16_t u16_tmp;
     t_menu_extra_list *ext_ptr_tmp;
 
-    if ((extra != NULL) && (extra->ptr != NULL))
+    if (extra != NULL)
     {
         /* dereference and operate the pointer based on the defined type */
-        switch(extra->type)
+        switch(type)
         {
             case MENU_TYPE_LIST:
                 /* 8-bit array index */
                 /* display the "enum-like" element */
-                ext_ptr_tmp = (t_menu_extra_list*)(extra->ptr);
-                u8_tmp = *(ext_ptr_tmp->ptr);
+                ext_ptr_tmp = (t_menu_extra_list*)extra;
+                u8_tmp = ext_ptr_tmp->ptr;
                 display_write_string(ext_ptr_tmp->labels[u8_tmp]);
                 break;
             case MENU_TYPE_NUMERIC_8:
                 /* 8-bit number */
-                u8_tmp = (*((uint8_t*)extra->ptr));
-                display_write_number((uint16_t)u8_tmp, true);
+                u8_tmp = (*((uint8_t*)extra));
+                display_write_number((uint16_t)u8_tmp, false);
                 break;
             case MENU_TYPE_NUMERIC_16:
                 /* 16-bit number */
-                u16_tmp = (*((uint16_t*)extra->ptr));
+                u16_tmp = (*((uint16_t*)extra));
                 display_write_number(u16_tmp, false);
                 break;
             default:
@@ -115,26 +120,35 @@ static void menu_index_edit(t_menu_state *state, uint8_t count, bool increment)
 static void menu_extra_edit(t_menu_item *item, bool increment)
 {
     t_menu_extra_list* tmp_extra;
-    if ((item->extra != NULL) && (item->extra->ptr != NULL))
+
+    if (item->extra != NULL)
     {
         /* dereference and operate the pointer based on the defined type */
-        switch(item->extra->type)
+        switch(item->type)
         {
             case MENU_TYPE_LIST:
                 /* 8-bit number for indexing the type "list" */
-                tmp_extra = (t_menu_extra_list*)item->extra->ptr;
-                if (increment == true) *tmp_extra->ptr = (*(tmp_extra->ptr)) + 1U;
-                else *tmp_extra->ptr = (*(tmp_extra->ptr)) - 1U;
+                tmp_extra = (t_menu_extra_list*)item->extra;
+                if (increment == true)
+                {
+                    if (tmp_extra->ptr < (tmp_extra->count - 1))
+                        tmp_extra->ptr++;
+                }
+                else
+                {
+                    if (tmp_extra->ptr > 0U)
+                        tmp_extra->ptr--;
+                }
                 break;
             case MENU_TYPE_NUMERIC_8:
                 /* 8-bit number */
-                if (increment == true) (*((uint8_t*)item->extra->ptr))++;
-                else (*((uint8_t*)item->extra->ptr))--;
+                if (increment == true) (*((uint8_t*)item->extra))++;
+                else (*((uint8_t*)item->extra))--;
                 break;
             case MENU_TYPE_NUMERIC_16:
                 /* 16-bit number */
-                if (increment == true) (*((uint16_t*)item->extra->ptr))++;
-                else (*((uint16_t*)item->extra->ptr))--;
+                if (increment == true) (*((uint16_t*)item->extra))++;
+                else (*((uint16_t*)item->extra))--;
                 break;
             default:
                 /* not implemented */
@@ -147,7 +161,7 @@ static void menu_extra_edit(t_menu_item *item, bool increment)
 This routine displays the current state of the menu i.e. labels, selection
 and possibly extra data like ON-OFF labels or numeric values.
 */
-void menu_display(t_menu_state *state, t_menu_item *item, uint8_t count)
+void menu_display(void)
 {
 
     uint8_t id1;
@@ -156,7 +170,7 @@ void menu_display(t_menu_state *state, t_menu_item *item, uint8_t count)
     display_clean();
 
     /* selected item arrow display */
-    if (state->index > state->prev)
+    if (g_state->index > g_state->prev)
     {
         /* "down" */
         display_set_cursor(1, 0);
@@ -169,25 +183,25 @@ void menu_display(t_menu_state *state, t_menu_item *item, uint8_t count)
 
     display_write_char(0x7EU);
 
-    id1 = state->prev > state->index ? state->index : state->prev;
-    id2 = state->prev > state->index ? state->prev : state->index;
+    id1 = g_state->prev > g_state->index ? g_state->index : g_state->prev;
+    id2 = g_state->prev > g_state->index ? g_state->prev : g_state->index;
 
     /* display labels and extra data */
     /* for faster execution time, work with the pointer of the items */
 
     display_set_cursor(0U, 1U);                                       /* cursor right after the (possible) arrow */
-    display_write_string((item + id1)->label);         /* label */
+    display_write_string((g_item + id1)->label);         /* label */
     display_advance_cursor(1U);
-    menu_extra_display((item + id1)->extra);
+    menu_extra_display((g_item + id1)->extra, (g_item + id1)->type);
     display_set_cursor(1U, 1U);                                       /* cursor right after the (possible) arrow */
-    display_write_string((item + id2)->label);    /* label */
+    display_write_string((g_item + id2)->label);    /* label */
     display_set_cursor(1U, 2U);
     display_advance_cursor(1U);
-    menu_extra_display((item + id2)->extra);
+    menu_extra_display((g_item + id2)->extra, (g_item + id2)->type);
 
 }
 
-void menu_event(e_menu_event event, t_menu_state *state, t_menu_item *item, uint8_t count)
+void menu_event(e_menu_event event)
 {
     switch(event)
     {
@@ -196,22 +210,30 @@ void menu_event(e_menu_event event, t_menu_state *state, t_menu_item *item, uint
             break;
         case MENU_EVENT_CLICK:
             /* if a simple entry, do nothing (probably changing menu anyhow) */
-            if (state->state == MENU_NOT_SELECTED) state->state = MENU_SELECTED;
-            else state->state = MENU_SELECTED;
+            if ((g_item->extra != NULL) && (g_state->state == MENU_NOT_SELECTED)) g_state->state = MENU_SELECTED;
+            else g_state->state = MENU_NOT_SELECTED;
             break;
         case MENU_EVENT_CLICK_LONG:
             /* NOOP for the moment */
             break;
         case MENU_EVENT_LEFT:
-            if (state->state == MENU_SELECTED) menu_extra_edit(item, false);
-            else menu_index_edit(state, count, false);
+            if (g_state->state == MENU_SELECTED) menu_extra_edit(g_item + g_state->index, false);
+            else menu_index_edit(g_state, g_count, false);
             break;
         case MENU_EVENT_RIGHT:
-            if (state->state == MENU_SELECTED) menu_extra_edit(item, true);
-            else menu_index_edit(state, count, true);
+            if (g_state->state == MENU_SELECTED) menu_extra_edit(g_item + g_state->index, true);
+            else menu_index_edit(g_state, g_count, true);
             break;
         default:
             /* no event; NOOP */
             break;
     }
 }
+
+void menu_set(t_menu_state *state, t_menu_item *item, uint8_t count)
+{
+    g_state = state;
+    g_item  = item;
+    g_count = count;
+}
+
