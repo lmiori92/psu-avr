@@ -44,6 +44,11 @@
 
 #define SMOOTHING_SIZE      (sizeof(smoothing_deltat) / sizeof(smoothing_deltat[0]))
 
+//#define ENCODER_QUEUE_SIZE       10U
+//static uint8_t encoder_queue_index = 0U;
+//static e_enc_event encoder_queue[ENCODER_QUEUE_SIZE];
+static bool encoder_menu_mode = false;
+
 /* CONSTANTS */
 const uint8_t psu_channel_node_id_map[PSU_CHANNEL_NUM][2] =
 {
@@ -91,7 +96,7 @@ static t_application application;
 static t_remote_datagram_buffer remote_dgram_rcv_copy;
 
 /* MENU (testing) */
-static e_psu_gui_menu menu_page = PSU_MENU_PSU;
+static e_psu_gui_menu menu_page = PSU_MENU_STARTUP;
 static uint8_t asd = 234;
 static t_menu_state menu_state = {0, 1, MENU_NOT_SELECTED};
 static uint8_t bool_values[2] = { 1, 0 };
@@ -100,7 +105,7 @@ static t_menu_extra_list menu_extra_3 = { 2U, 0U, bool_labels, bool_values };
 
 static t_menu_item menu_item[4] = { {"A", (void*)&asd, MENU_TYPE_NUMERIC_8 },
                                     {"B", NULL, MENU_TYPE_NONE },
-                                    {"C", (void*)&application.cycle_time, MENU_TYPE_NUMERIC_16 },
+                                    {"C", (void*)&application.cycle_time_max, MENU_TYPE_NUMERIC_16 },
                                     {"PID", (void*)&menu_extra_3, MENU_TYPE_LIST }
                                     };
 
@@ -546,29 +551,33 @@ static void encoder_event_callback(e_enc_event event, uint32_t delta_t)
     }
     else
     {
-        if (event == ENC_EVT_LEFT)
+        if (encoder_menu_mode == TRUE)
         {
-            menu_event(MENU_EVENT_LEFT);
+            /* atomic read of the flag: menu mode */
+            if (event == ENC_EVT_LEFT) menu_event(MENU_EVENT_LEFT);
+            else if (event == ENC_EVT_RIGHT) menu_event(MENU_EVENT_RIGHT);
         }
-        else if (event == ENC_EVT_RIGHT)
+        else
         {
-            menu_event(MENU_EVENT_RIGHT);
-        }
-        /* Rotation event */
-        for (i = 0; i < SMOOTHING_SIZE; i++)
-        {
-            if (delta_t >= smoothing_deltat[i])
+//        if (encoder_queue_index < ENCODER_QUEUE_SIZE)
+//            encoder_queue[encoder_queue_index++] = event;
+
+            /* Rotation event */
+            for (i = 0; i < SMOOTHING_SIZE; i++)
             {
-                diff = smoothing_result[i];
-                if (event == ENC_EVT_LEFT)
+                if (delta_t >= smoothing_deltat[i])
                 {
-                    lib_diff(&application.selected_setpoint_ptr->value.raw, diff);
+                    diff = smoothing_result[i];
+                    if (event == ENC_EVT_LEFT)
+                    {
+                        lib_diff(&application.selected_setpoint_ptr->value.raw, diff);
+                    }
+                    else if (event == ENC_EVT_RIGHT)
+                    {
+                        lib_sum(&application.selected_setpoint_ptr->value.raw, application.selected_setpoint_ptr->scale.max, diff);
+                    }
+                    break;
                 }
-                else if (event == ENC_EVT_RIGHT)
-                {
-                    lib_sum(&application.selected_setpoint_ptr->value.raw, application.selected_setpoint_ptr->scale.max, diff);
-                }
-                break;
             }
         }
     }
@@ -722,7 +731,7 @@ static void psu_output_processing(void)
 
 }
 
-static uint8_t get_digit(uint16_t *val)
+static char get_digit(uint16_t *val)
 {
     *val = *val / 10U;
     return '0' + *val % 10U;
@@ -731,44 +740,35 @@ static uint8_t get_digit(uint16_t *val)
 static void gui_print_measurement(e_psu_setpoint type, uint16_t value, bool selected)
 {
     /* Operation order is funny because this is more optimized :-) */
-    char temp[9] = {'\0','\0','\0','\0','\0','\0','\0','\0','\0'};
+    char temp[8];
 
     if (selected == true)
     {
         /* arrow symbol */
         temp[0] = 0x7E;
     }
-
-    temp[1] = ' ';
-    temp[3] = '.';
+    else
+    {
+        temp[0] = ' ';
+    }
 
     if (type == PSU_SETPOINT_VOLTAGE)
     {
-
-        temp[5] = get_digit(&value);
-        temp[4] = get_digit(&value);
-        temp[2] = get_digit(&value);
-
-        /* Display 10s if voltage setpoint selected */
-        value /= 10U;
-        temp[1] = get_digit(&value);
-
         temp[6] = 'V';
-        temp[7] = ' ';
     }
     else
     {
-
-        temp[6] = get_digit(&value);
-        temp[5] = get_digit(&value);
-        temp[4] = get_digit(&value);
-        temp[2] = get_digit(&value);
-
-        temp[7] = 'A';
-
+        temp[6] = 'A';
     }
 
-    temp[8] = 0;
+    /* digits */
+    temp[5] = get_digit(&value);
+    temp[4] = get_digit(&value);
+    temp[3] = '.';
+    temp[2] = get_digit(&value);
+    temp[1] = get_digit(&value);
+
+    temp[7] = '\0';
     display_write_string(temp);
 
 }
@@ -814,24 +814,15 @@ static e_psu_gui_menu psu_menu_handler(e_psu_gui_menu page)
     new_page = page;
     evt = keypad_clicked(BUTTON_SELECT);
 
-    switch(evt)
-    {
-    case KEY_CLICK:
-        menu_evt = MENU_EVENT_CLICK;
-        break;
-    case KEY_HOLD:
-        menu_evt = MENU_EVENT_CLICK_LONG;
-        break;
-    default:
-        menu_evt = MENU_EVENT_NONE;
-        break;
-    }
+    /* Input event to Menu event mapping */
+    /* The Left and Right events are handled in the interrupt */
+    if (evt == KEY_CLICK) menu_evt = MENU_EVENT_CLICK;
+    else if (evt == KEY_HOLD) menu_evt = MENU_EVENT_CLICK_LONG;
+    else menu_evt = MENU_EVENT_NONE;
 
     switch(page)
     {
     case PSU_MENU_PSU:
-
-        //menu_set(NULL, NULL, 0U);
         if (evt == KEY_CLICK)
         {
             psu_advance_selection();
@@ -845,21 +836,41 @@ static e_psu_gui_menu psu_menu_handler(e_psu_gui_menu page)
 
         break;
     case PSU_MENU_MAIN:
-        //menu_set(&menu_state, &menu_item[0], 4U);
+
+        encoder_menu_mode = true;
+
+        menu_set(&menu_state, &menu_item[0], 4U);
         if (evt == KEY_HOLD)
         {
         	new_page = PSU_MENU_PSU;
         }
+        if (evt == KEY_CLICK)
+        {
+            application.cycle_time_max = 0;
+        }
         break;
     default:
-        /* error; back to start */
-        page = PSU_MENU_PSU;
+        /* error or PSU_MENU_STARTUP */
+        new_page = PSU_MENU_PSU;
         break;
     }
 
     if (new_page != page)
     {
     	/* Page changed, do initialization if necessary */
+        switch(page)
+        {
+        case PSU_MENU_PSU:
+            encoder_menu_mode = false;
+            menu_set(NULL, NULL, 0U);
+            break;
+        case PSU_MENU_MAIN:
+            encoder_menu_mode = true;
+            menu_set(&menu_state, &menu_item[0], 4U);
+            break;
+        default:
+            break;
+        }
     }
 
     /* periodic function for the menu handler */
@@ -913,35 +924,35 @@ void psu_app_init(void)
 
 }
 
-//ISR(TIMER0_COMPB_vect)
-//{
-//    uint8_t i;
-//DBG_HIGH;
-//    for (i = 0; i < (uint8_t)PSU_CHANNEL_NUM; i++)
-//    {
-//        if (psu_channels[i].remote_or_local == false)
-//        {
-//            /* Local channel */
-//
-//            /* ADC readout */
-//            psu_adc_processing(&psu_channels[i]);
-//
-//            /* PID controller */
-//            psu_channels[i].current_setpoint.value.scaled = pid_Controller(psu_channels[i].current_setpoint.value.scaled,
-//                                                                           psu_channels[i].current_readout.value.raw,
-//                                                                           &psu_channels[i].current_limit_pid);
-//
-//            /* PWM */
-//            psu_pwm_processing(&psu_channels[i]);
-//
-//        }
-//        else
-//        {
-//            /* not timer critical -> handled in the low priority thread */
-//        }
-//    }
-//    DBG_LOW;
-//}
+ISR(TIMER0_COMPB_vect)
+{
+    uint8_t i;
+
+    for (i = 0; i < (uint8_t)PSU_CHANNEL_NUM; i++)
+    {
+        if (psu_channels[i].remote_or_local == false)
+        {
+            /* Local channel */
+
+            /* ADC readout */
+            psu_adc_processing(&psu_channels[i]);
+
+            /* PID controller */
+            psu_channels[i].current_setpoint.value.scaled = pid_Controller(psu_channels[i].current_setpoint.value.scaled,
+                                                                           psu_channels[i].current_readout.value.raw,
+                                                                           &psu_channels[i].current_limit_pid);
+
+            /* PWM */
+            psu_pwm_processing(&psu_channels[i]);
+
+        }
+        else
+        {
+            /* not timer critical -> handled in the low priority thread */
+        }
+    }
+
+}
 
 __attribute__((always_inline)) void inline psu_app(void)
 {
@@ -949,11 +960,25 @@ __attribute__((always_inline)) void inline psu_app(void)
     static volatile uint32_t start;
 
     start = g_timestamp;
+
+    /* check 50ms flag */
+    application.flag_50ms.flag = false;
+    if ((g_timestamp - application.flag_50ms.timestamp) > KEY_50MS_FLAG)
+    {
+        /* 50ms elapsed, set the flag */
+        application.flag_50ms.flag = true;
+        application.flag_50ms.timestamp = g_timestamp;
+    }
+    else
+    {
+        /* waiting for the 50ms flag */
+    }
+
     /* Periodic functions */
     psu_input_processing();
 
     /* Keypad */
-    keypad_periodic(g_timestamp);
+    keypad_periodic(application.flag_50ms.flag);
 
     /* GUI */
     menu_page = psu_menu_handler(menu_page);
@@ -973,5 +998,7 @@ __attribute__((always_inline)) void inline psu_app(void)
 #endif
 
     application.cycle_time = g_timestamp - start;
+    if (application.cycle_time > application.cycle_time_max)
+        application.cycle_time_max = application.cycle_time;
 
 }

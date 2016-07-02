@@ -63,7 +63,8 @@ typedef enum _e_psu_channels
 typedef enum _e_psu_gui_menu
 {
     PSU_MENU_PSU,
-    PSU_MENU_MAIN
+    PSU_MENU_MAIN,
+    PSU_MENU_STARTUP
 } e_psu_gui_menu;
 
 typedef struct _t_voltage
@@ -94,6 +95,12 @@ typedef struct _t_channel
 
 typedef struct
 {
+    bool     flag;
+    uint32_t timestamp;
+} t_timer;
+
+typedef struct
+{
     e_psu_channel  selected_psu;
     e_psu_setpoint selected_setpoint;
 
@@ -101,7 +108,10 @@ typedef struct
     t_measurement  *selected_setpoint_ptr;      /**< Keep a reference to the selected PSU for optimization in the ISR callback */
 
     bool           master_or_slave;             /**< True: is a master; False: is a slave */
+
+    t_timer        flag_50ms;                   /**< True when 50ms have been passed; False: the immediate next cycle */
     uint32_t       cycle_time;                  /**< Cycle Time (main application thread) */
+    uint32_t       cycle_time_max;
 } t_application;
 
 void psu_app_init(void);

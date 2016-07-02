@@ -23,8 +23,7 @@
 
 #include <stdbool.h>
 
-static t_keypad keypad;
-static uint32_t cur_timestamp = 0;
+static t_keypad keypad[NUM_BUTTONS];
 
 void keypad_init(void)
 {
@@ -33,77 +32,64 @@ void keypad_init(void)
     /* Init keypad */
     for (i = 0; i < NUM_BUTTONS; i++)
     {
-        keypad.input[i] = false;
-        keypad.buttons[i]  = false;
-        keypad.latches[i]  = false;
-        keypad.debounce[i] = 0;
+        keypad[i].input    = false;
+        keypad[i].buttons  = false;
+        keypad[i].latches  = false;
+        keypad[i].debounce = 0;
     }
 }
 
 void keypad_set_input(e_key key, bool value)
 {
-    keypad.input[key] = value;
+    keypad[key].input = value;
 }
 
 bool keypad_get_input(e_key key)
 {
-    return keypad.input[key];
+    return keypad[key].input;
 }
 
 e_key_event keypad_clicked(e_key key)
 {
-    return keypad.buttons[key];
+    return keypad[key].buttons;
 }
 
 /* Read the keypad, apply debounce to inputs and detect the rising edge */
-void keypad_periodic(uint32_t timestamp)
+void keypad_periodic(bool flag_50ms)
 {
 
     uint8_t i = 0;
-    bool flag_50ms = false;
-
-    /* check 50ms flag */
-    if ((timestamp - cur_timestamp) > KEY_50MS_FLAG)
-    {
-        /* 50ms elapsed, set the flag */
-        flag_50ms = true;
-        cur_timestamp = timestamp;
-    }
-    else
-    {
-        /* waiting for the 50ms flag */
-    }
 
     for (i = 0; i < NUM_BUTTONS; i++)
     {
         /* the event shall be consumed within a cycle */
-        keypad.buttons[i] = KEY_NONE;
+        keypad[i].buttons = KEY_NONE;
 
         /* debounce the raw input */
-        if ((flag_50ms == true) && (keypad.debounce[i] < KEY_DEBOUNCE_HOLD))
+        if ((flag_50ms == true) && (keypad[i].debounce < KEY_DEBOUNCE_HOLD))
         {
             /* flag available, count up */
-            keypad.debounce[i]++;
+            keypad[i].debounce++;
         }
         else
         {
             /* flag not available, wait next round */
         }
 
-        if (keypad.latches[i] == false && keypad.input[i] == true)
+        if (keypad[i].latches == false && keypad[i].input == true)
         {
             /* rising edge */
-            keypad.debounce[i] = 0;
+            keypad[i].debounce = 0;
         }
-        else if (keypad.latches[i] == true && keypad.input[i] == true)
+        else if (keypad[i].latches == true && keypad[i].input == true)
         {
 
-            if (keypad.debounce[i] == KEY_DEBOUNCE_HOLD)
+            if (keypad[i].debounce == KEY_DEBOUNCE_HOLD)
             {
                 /* button stayed high for long enough for a hold event */
-                keypad.buttons[i] = KEY_HOLD;
+                keypad[i].buttons = KEY_HOLD;
                 /* prevent overflow */
-                keypad.debounce[i] = KEY_DEBOUNCE_HOLD + 1U;
+                keypad[i].debounce = KEY_DEBOUNCE_HOLD + 1U;
             }
             else
             {
@@ -112,20 +98,20 @@ void keypad_periodic(uint32_t timestamp)
         }
         else
         {
-            if (keypad.debounce[i] > KEY_DEBOUNCE_CLICK && keypad.debounce[i] < KEY_DEBOUNCE_HOLD)
+            if (keypad[i].debounce > KEY_DEBOUNCE_CLICK && keypad[i].debounce < KEY_DEBOUNCE_HOLD)
             {
                 /* click event */
-                keypad.buttons[i] = KEY_CLICK;
+                keypad[i].buttons = KEY_CLICK;
             }
             else
             {
                 /* either not enough for a click or hold event */
             }
 
-            keypad.debounce[i] = 0;
+            keypad[i].debounce = 0;
         }
 
-        keypad.latches[i] = keypad.input[i];
+        keypad[i].latches = keypad[i].input;
 
     }
 

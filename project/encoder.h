@@ -40,6 +40,7 @@ typedef enum
 
 typedef enum
 {
+    ENC_EVT_NONE,
     ENC_EVT_RIGHT,
     ENC_EVT_LEFT,
     ENC_EVT_CLICK_DOWN,

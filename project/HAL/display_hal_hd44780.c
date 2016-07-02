@@ -84,7 +84,7 @@ static void shift_init(void)
     SHIFT_DDR |= (1 << SHIFT_DATA_PIN);
 }
 
-static void shift_out(uint8_t byte)
+static void shift_out(void)
 {
     uint8_t i;
     /* Do not transfer the temporary register to the outputs */
@@ -94,7 +94,7 @@ static void shift_out(uint8_t byte)
     for (i = 0; i < 8; i++)
     {
         /* Shift bits out */
-        if (((byte >> i) & 0x01U) == 0x01U)
+        if (((HD44780_PORT >> i) & 0x01U) == 0x01U)
         {
             SHIFT_DATA_HIGH;
         }
@@ -116,17 +116,17 @@ static void shift_out(uint8_t byte)
 static void hd44780_write_nibble(uint8_t nibble)
 {
     /* Set DATA in the virtual port */
-    HD44780_PORT = (HD44780_PORT & 0xff & ~(0x0f << HD44780_D4)) | ((nibble & 0x0f) << HD44780_D4);
-    shift_out(HD44780_PORT);
+    HD44780_PORT = (HD44780_PORT & ~(0x0f << HD44780_D4)) | ((nibble & 0x0f) << HD44780_D4);
+    shift_out();
 
     /* Clocks the ENABLE */
     HD44780_PORT &= ~(1 << HD44780_EN);
-    shift_out(HD44780_PORT);
+    shift_out();
     HD44780_PORT |= (1 << HD44780_EN);
-    shift_out(HD44780_PORT);
+    shift_out();
     HD44780_PORT &= ~(1 << HD44780_EN);
-    shift_out(HD44780_PORT);
-    _delay_us(1);   /* adjust if needed! */
+    shift_out();
+    //_delay_us(1);   /* adjust if needed! */
 }
 
 static void hd44780_transmit(uint8_t data, uint8_t tx_mode)
@@ -140,7 +140,7 @@ static void hd44780_transmit(uint8_t data, uint8_t tx_mode)
     {
         HD44780_PORT &= ~(1 << HD44780_RS);
     }
-    shift_out(HD44780_PORT);
+    shift_out();
 
     /* RW pin is always tied to GND in this implementation
      * (no need to pull it low here) */
@@ -173,7 +173,7 @@ static void hd44780_init(void)
     _delay_ms(150);
 
     HD44780_PORT = 0U;
-    shift_out(HD44780_PORT);
+    shift_out();
     _delay_ms(5);
 
     /* Follow initialization sequence from the datasheet */
@@ -204,7 +204,7 @@ static void hd44780_display_hal_init(void)
     /* Initialize the shift register backend
      * to be used with the virtual port register */
     shift_init();
-    shift_out(0x00);
+    shift_out();
 
     /* Initialize the HD44780 chipset and LCD */
     hd44780_init();
@@ -216,9 +216,10 @@ static void hd44780_display_hal_init(void)
 
 static void hd44780_display_hal_set_cursor(uint8_t line, uint8_t chr)
 {
-    static uint8_t offsets[] = { 0x00, 0x40, 0x14, 0x54 };
+    static uint8_t offsets[] = { 0x00, 0x40 };
 
-    if (line > 1) {
+    if (line > 1)
+    {
       line = 1;
     }
 

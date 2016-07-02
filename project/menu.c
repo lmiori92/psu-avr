@@ -34,7 +34,6 @@ static char* BOOL_LABELS[2] = { "NO", "YES" };
 static uint8_t BOOL_VALUES[2] = { (uint8_t)false, (uint8_t)true };
 
 /** Static declarations **/
-static bool menu_not_available(void);
 static void menu_extra_display(void *extra, e_item_type type);
 static void menu_index_edit(t_menu_state *state, uint8_t count, bool increment);
 static void menu_extra_edit(t_menu_item *item, bool increment);
@@ -55,19 +54,6 @@ void menu_init(t_menu_state *state, t_menu_item *item, uint8_t count)
 {
     state->state = MENU_NOT_SELECTED;
     state->index = 0;
-}
-
-static bool menu_not_available(void)
-{
-    if ((g_state == NULL ) || (g_item == NULL) || (g_count == 0U))
-    {
-    	/* No menu page is selected */
-    	return true;
-    }
-    else
-    {
-    	return false;
-    }
 }
 
 static void menu_extra_display(void *extra, e_item_type type)
@@ -181,7 +167,7 @@ void menu_display(void)
     uint8_t id1;
     uint8_t id2;
 
-    if (menu_not_available())
+    if ((g_state == NULL ) || (g_item == NULL))
     {
     	/* No menu page is selected */
     	return;
@@ -224,7 +210,7 @@ void menu_display(void)
 void menu_event(e_menu_event event)
 {
 
-    if (menu_not_available() == false)
+    if ((g_state == NULL ) || (g_item == NULL))
     {
     	/* No menu page is selected */
     	return;

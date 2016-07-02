@@ -34,8 +34,10 @@
 typedef enum e_buttons_
 {
     BUTTON_SELECT,
+    /*
     BUTTON_LEFT,
     BUTTON_RIGHT,
+    */
 
     NUM_BUTTONS
 } e_key;
@@ -51,18 +53,17 @@ typedef enum e_key_event_
 typedef struct
 {
 
-    bool         input[NUM_BUTTONS];
-    uint8_t      debounce[NUM_BUTTONS];
-    bool         latches[NUM_BUTTONS];
-    e_key_event  buttons[NUM_BUTTONS];
+    bool         input;
+    uint8_t      debounce;
+    bool         latches;
+    e_key_event  buttons;
 
 } t_keypad;
 
 void keypad_init(void);
 e_key_event keypad_clicked(e_key key);
-
 void keypad_set_input(e_key key, bool value);
 bool keypad_get_input(e_key key);
-void keypad_periodic(uint32_t timestamp);
+void keypad_periodic(bool flag_50ms);
 
 #endif /* _KEYPAD_H_ */
