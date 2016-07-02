@@ -1,7 +1,7 @@
 IDIR =../project
 CC=gcc $(sdl-config --static-libs) -lm
 CFLAGS=-I$(IDIR) -g
-LDFLAGS=-lSDL2 $(sdl-config --static-libs) -lm
+LDFLAGS= $(sdl-config --static-libs) -lm
 
 ODIR=.
 SDIR=../project

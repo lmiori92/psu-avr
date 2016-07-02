@@ -31,6 +31,7 @@
 #include "uart.h"
 #include "remote.h"
 #include "system.h"
+#include "time_m.h"
 
 /* Standard Library */
 
@@ -38,8 +39,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
-
-#include "time_m.h"
 
 /* DEFINES */
 
@@ -776,7 +775,7 @@ static void gui_print_measurement(e_psu_setpoint type, uint16_t value, bool sele
 
 static void gui_main_screen(void)
 {
-    return;
+
     bool selected;
 
     /* Line 1 */
@@ -808,9 +807,11 @@ static void gui_main_screen(void)
 static e_psu_gui_menu psu_menu_handler(e_psu_gui_menu page)
 {
 
-    e_key_event evt;
-    e_menu_event menu_evt;
+    e_key_event evt;		/* event from the input system */
+    e_menu_event menu_evt;	/* event to be fed to the menu system */
+    e_psu_gui_menu new_page;	/* newly selected page if any */
 
+    new_page = page;
     evt = keypad_clicked(BUTTON_SELECT);
 
     switch(evt)
@@ -830,22 +831,25 @@ static e_psu_gui_menu psu_menu_handler(e_psu_gui_menu page)
     {
     case PSU_MENU_PSU:
 
+        //menu_set(NULL, NULL, 0U);
         if (evt == KEY_CLICK)
         {
             psu_advance_selection();
         }
         else if (evt == KEY_HOLD)
         {
-            page = PSU_MENU_MAIN;
+        	new_page = PSU_MENU_MAIN;
         }
 
         gui_main_screen();
 
         break;
     case PSU_MENU_MAIN:
-        menu_set(&menu_state, &menu_item[0], 4U);
-        menu_display();
-        menu_event(menu_evt);
+        //menu_set(&menu_state, &menu_item[0], 4U);
+        if (evt == KEY_HOLD)
+        {
+        	new_page = PSU_MENU_PSU;
+        }
         break;
     default:
         /* error; back to start */
@@ -853,7 +857,16 @@ static e_psu_gui_menu psu_menu_handler(e_psu_gui_menu page)
         break;
     }
 
-    return page;
+    if (new_page != page)
+    {
+    	/* Page changed, do initialization if necessary */
+    }
+
+    /* periodic function for the menu handler */
+    menu_display();
+    menu_event(menu_evt);
+
+    return new_page;
 }
 
 /*
@@ -944,28 +957,6 @@ __attribute__((always_inline)) void inline psu_app(void)
 
     /* GUI */
     menu_page = psu_menu_handler(menu_page);
-
-/*
-    if (debug == true)
-    {
-        if (evt == KEY_HOLD)
-        {
-            debug = false;
-        }
-        if (keypad_clicked(BUTTON_RIGHT) == KEY_CLICK) cnt++;
-        if (keypad_clicked(BUTTON_LEFT) == KEY_CLICK) cnt--;
-        gui_debug_screen();
-    }
-
-    else
-    {
-        if (evt == KEY_HOLD)
-        {
-            debug = true;
-        }
-        gui_main_screen();
-    }
-*/
 
     /* Output processing */
     psu_output_processing();
