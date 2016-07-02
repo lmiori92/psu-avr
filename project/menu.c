@@ -193,9 +193,9 @@ void menu_display(void)
     display_write_string((g_item + id1)->label);         /* label */
     display_advance_cursor(1U);
     menu_extra_display((g_item + id1)->extra, (g_item + id1)->type);
+
     display_set_cursor(1U, 1U);                                       /* cursor right after the (possible) arrow */
     display_write_string((g_item + id2)->label);    /* label */
-    display_set_cursor(1U, 2U);
     display_advance_cursor(1U);
     menu_extra_display((g_item + id2)->extra, (g_item + id2)->type);
 

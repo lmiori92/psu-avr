@@ -38,19 +38,33 @@
 
 #define PSU_CHANNEL_TIMEOUT   2000000U    /**< Timeout if commnuication link broken or erroneus */
 
-typedef enum
+typedef enum _e_psu_setpoint
 {
     PSU_SETPOINT_VOLTAGE,
     PSU_SETPOINT_CURRENT,
 } e_psu_setpoint;
 
-typedef enum
+typedef enum _e_psu_state
 {
     PSU_STATE_INIT,
     PSU_STATE_PREOPERATIONAL,
     PSU_STATE_OPERATIONAL,
     PSU_STATE_SAFE_STATE
 } e_psu_state;
+
+typedef enum _e_psu_channels
+{
+    PSU_CHANNEL_0,
+    PSU_CHANNEL_1,
+
+    PSU_CHANNEL_NUM
+} e_psu_channel;
+
+typedef enum _e_psu_gui_menu
+{
+    PSU_MENU_PSU,
+    PSU_MENU_MAIN
+} e_psu_gui_menu;
 
 typedef struct _t_voltage
 {
@@ -78,13 +92,17 @@ typedef struct _t_channel
     pidData_t       current_limit_pid;      /**< Current limit mode PID controller state */
 } t_psu_channel;
 
-typedef enum _e_psu_channels
+typedef struct
 {
-    PSU_CHANNEL_0,
-    PSU_CHANNEL_1,
+    e_psu_channel  selected_psu;
+    e_psu_setpoint selected_setpoint;
 
-    PSU_CHANNEL_NUM
-} e_psu_channel;
+    t_psu_channel  *selected_psu_ptr;           /**< Keep a reference to the selected PSU for optimization in the ISR callback */
+    t_measurement  *selected_setpoint_ptr;      /**< Keep a reference to the selected PSU for optimization in the ISR callback */
+
+    bool           master_or_slave;             /**< True: is a master; False: is a slave */
+    uint32_t       cycle_time;                  /**< Cycle Time (main application thread) */
+} t_application;
 
 void psu_app_init(void);
 void psu_app(void);

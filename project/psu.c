@@ -86,37 +86,24 @@ static t_psu_channel psu_channels[PSU_CHANNEL_NUM] =
         }
 };
 
-typedef struct
-{
-    e_psu_channel  selected_psu;
-    e_psu_setpoint selected_setpoint;
-
-    t_psu_channel  *selected_psu_ptr;           /**< Keep a reference to the selected PSU for optimization in the ISR callback */
-    t_measurement  *selected_setpoint_ptr;      /**< Keep a reference to the selected PSU for optimization in the ISR callback */
-
-    bool           master_or_slave;             /**< True: is a master; False: is a slave */
-    uint32_t       cycle_time;                  /**< Cycle Time (main application thread) */
-} t_application;
-
 static t_application application;
 
 /* Remote application level buffers */
 static t_remote_datagram_buffer remote_dgram_rcv_copy;
 
 /* MENU (testing) */
-//static uint8_t encoder_left_queue;
-//static uint8_t encoder_right_queue;
-    static uint8_t asd = 234;
-    static t_menu_state menu_state = {0, 1, MENU_NOT_SELECTED};
+static e_psu_gui_menu menu_page = PSU_MENU_PSU;
+static uint8_t asd = 234;
+static t_menu_state menu_state = {0, 1, MENU_NOT_SELECTED};
 static uint8_t bool_values[2] = { 1, 0 };
 static char* bool_labels[2] = { "YES", "NO" };
-    static t_menu_extra_list menu_extra_3 = { 2U, 0U, bool_labels, bool_values };
+static t_menu_extra_list menu_extra_3 = { 2U, 0U, bool_labels, bool_values };
 
-    static t_menu_item menu_item[4] = { {"A", (void*)&asd, MENU_TYPE_NUMERIC_8 },
-                                        {"B", NULL, MENU_TYPE_NONE },
-                                        {"C", (void*)&application.cycle_time, MENU_TYPE_NUMERIC_16 },
-                                        {"D", (void*)&menu_extra_3, MENU_TYPE_LIST }
-                                        };
+static t_menu_item menu_item[4] = { {"A", (void*)&asd, MENU_TYPE_NUMERIC_8 },
+                                    {"B", NULL, MENU_TYPE_NONE },
+                                    {"C", (void*)&application.cycle_time, MENU_TYPE_NUMERIC_16 },
+                                    {"PID", (void*)&menu_extra_3, MENU_TYPE_LIST }
+                                    };
 
 static void uart_received(uint8_t byte)
 {
@@ -736,54 +723,60 @@ static void psu_output_processing(void)
 
 }
 
+static uint8_t get_digit(uint16_t *val)
+{
+    *val = *val / 10U;
+    return '0' + *val % 10U;
+}
+
 static void gui_print_measurement(e_psu_setpoint type, uint16_t value, bool selected)
 {
+    /* Operation order is funny because this is more optimized :-) */
+    char temp[9] = {'\0','\0','\0','\0','\0','\0','\0','\0','\0'};
 
     if (selected == true)
     {
-        display_write_char(0x7E);
-    }
-    else
-    {
-        display_write_char(' ');
+        /* arrow symbol */
+        temp[0] = 0x7E;
     }
 
+    temp[1] = ' ';
+    temp[3] = '.';
 
     if (type == PSU_SETPOINT_VOLTAGE)
     {
-        /* Display 10s */
-        display_write_char('0' + ((value / 10000) % 10));
+
+        temp[5] = get_digit(&value);
+        temp[4] = get_digit(&value);
+        temp[2] = get_digit(&value);
+
+        /* Display 10s if voltage setpoint selected */
+        value /= 10U;
+        temp[1] = get_digit(&value);
+
+        temp[6] = 'V';
+        temp[7] = ' ';
     }
     else
     {
-        /* No 10s */
+
+        temp[6] = get_digit(&value);
+        temp[5] = get_digit(&value);
+        temp[4] = get_digit(&value);
+        temp[2] = get_digit(&value);
+
+        temp[7] = 'A';
+
     }
 
-    display_write_char('0' + ((value / 1000) % 10));
-    display_write_char('.');
-
-    switch(type)
-    {
-    case PSU_SETPOINT_VOLTAGE:
-        display_write_char('0' + ((value / 100) % 10));
-        display_write_char('0' + ((value / 10) % 10));
-        display_write_char('V');
-        break;
-    case PSU_SETPOINT_CURRENT:
-        display_write_char('0' + ((value / 100) % 10));
-        display_write_char('0' + ((value / 10) % 10));
-        display_write_char('0' + (value % 10));
-        display_write_char('A');
-        break;
-    }
+    temp[8] = 0;
+    display_write_string(temp);
 
 }
-static bool debug = false;
-static uint8_t cnt = 0;
-static void gui_debug_screen(void);
 
 static void gui_main_screen(void)
 {
+    return;
     bool selected;
 
     /* Line 1 */
@@ -812,20 +805,55 @@ static void gui_main_screen(void)
         display_write_char(psu_channels[PSU_CHANNEL_1].state == PSU_STATE_OPERATIONAL ? '1' : '0');
 }
 
-static void gui_debug_screen(void)
+static e_psu_gui_menu psu_menu_handler(e_psu_gui_menu page)
 {
 
-    display_set_cursor(0, 0);
-    display_clean();
+    e_key_event evt;
+    e_menu_event menu_evt;
 
-    display_write_number(adc_get(ADC_0), true);
-    display_write_string(" - ");
-    display_write_number(adc_get(ADC_1), true);
+    evt = keypad_clicked(BUTTON_SELECT);
 
-    display_set_cursor(1, 0);
-    display_write_number(application.cycle_time, true);
-    display_write_string(" - ");
-    display_write_number(cnt, true);
+    switch(evt)
+    {
+    case KEY_CLICK:
+        menu_evt = MENU_EVENT_CLICK;
+        break;
+    case KEY_HOLD:
+        menu_evt = MENU_EVENT_CLICK_LONG;
+        break;
+    default:
+        menu_evt = MENU_EVENT_NONE;
+        break;
+    }
+
+    switch(page)
+    {
+    case PSU_MENU_PSU:
+
+        if (evt == KEY_CLICK)
+        {
+            psu_advance_selection();
+        }
+        else if (evt == KEY_HOLD)
+        {
+            page = PSU_MENU_MAIN;
+        }
+
+        gui_main_screen();
+
+        break;
+    case PSU_MENU_MAIN:
+        menu_set(&menu_state, &menu_item[0], 4U);
+        menu_display();
+        menu_event(menu_evt);
+        break;
+    default:
+        /* error; back to start */
+        page = PSU_MENU_PSU;
+        break;
+    }
+
+    return page;
 }
 
 /*
@@ -915,33 +943,7 @@ __attribute__((always_inline)) void inline psu_app(void)
     keypad_periodic(g_timestamp);
 
     /* GUI */
-    e_key_event evt;
-    e_menu_event menu_evt = MENU_EVENT_NONE;
-
-    evt = keypad_clicked(BUTTON_SELECT);
-
-    switch(evt)
-    {
-    case KEY_NONE:
-        break;
-    case KEY_CLICK:
-        menu_evt = MENU_EVENT_CLICK;
-        break;
-    case KEY_HOLD:
-        menu_evt = MENU_EVENT_CLICK_LONG;
-        break;
-    default:
-        break;
-    }
-
-    if (evt == KEY_CLICK)
-    {
-        psu_advance_selection();
-    }
-
-    menu_set(&menu_state, &menu_item[0], 4U);
-    menu_display();
-    menu_event(menu_evt);
+    menu_page = psu_menu_handler(menu_page);
 
 /*
     if (debug == true)
