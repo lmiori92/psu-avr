@@ -31,7 +31,7 @@
 
 #include <stdint.h>
 
-/** Enumeration of supported events the menu system can handle */
+/** Enumeration of supported events the menu system can handle (input) */
 typedef enum
 {
     MENU_EVENT_NONE,
@@ -39,7 +39,20 @@ typedef enum
     MENU_EVENT_CLICK_LONG,
     MENU_EVENT_LEFT,
     MENU_EVENT_RIGHT
-} e_menu_event;
+} e_menu_input_event;
+
+/** Enumeration of supported events the menu system can generate (output) */
+typedef enum _e_menu_output_event
+{
+    MENU_EVENT_OUTPUT_NONE,
+    MENU_EVENT_OUTPUT_CLICK,
+    MENU_EVENT_OUTPUT_CLICK_LONG,
+    MENU_EVENT_OUTPUT_INDEX_EDIT,   /**< item index value has been changed */
+    MENU_EVENT_OUTPUT_EXTRA_EDIT,   /**< item extra value has been changed */
+    MENU_EVENT_OUTPUT_SELECT,       /**< item is now selected */
+    MENU_EVENT_OUTPUT_DESELECT,     /**< item is not selected anymore */
+    MENU_EVENT_OUTPUT_BACK     /**< "back" item has been clicked */
+} e_menu_output_event;
 
 /** Enumeration of supported menu item types */
 typedef enum
@@ -47,7 +60,9 @@ typedef enum
     MENU_TYPE_NONE,            /**< Label only */
     MENU_TYPE_LIST,            /**< Menu item extra type is a list */
     MENU_TYPE_NUMERIC_8,       /**<  */
-    MENU_TYPE_NUMERIC_16       /**<  */
+    MENU_TYPE_NUMERIC_16,      /**<  */
+    MENU_TYPE_NUMERIC_32,      /**<  */
+    MENU_TYPE_BACK             /**< Menu item to get to the previous page */
 } e_item_type;
 
 /** Enumeration of the possible states a menu item can be */
@@ -78,16 +93,22 @@ typedef struct
 typedef struct
 {
     uint8_t index;              /**< Selected menu item */
-    uint8_t prev;              /**< Selected menu item */
+    uint8_t prev;               /**< Selected menu item */
     e_menu_item_state   state;  /**< Item state */
+    uint16_t diff;              /**< Determines scrolling "speed" / "velocity" (e.g. from an encoder or repeated keypress) */
 } t_menu_state;
+
+/** Event callback function */
+typedef void (*t_menu_cb)(e_menu_output_event event, uint8_t index, uint8_t page);
 
 /**  EXTERNAL LINKAGE FUNCTIONS **/
 
-void menu_init(t_menu_state *state, t_menu_item *item, uint8_t count);
-void menu_set(t_menu_state *state, t_menu_item *item, uint8_t count);
-void menu_display(void);
-void menu_event(e_menu_event event);
+void menu_init(t_menu_state *state);
 void menu_init_bool_list(t_menu_extra_list *extra);
+void menu_event_callback(t_menu_cb menu_cb);
+void menu_set(t_menu_state *state, t_menu_item *item, uint8_t count, uint8_t page);
+void menu_set_diff(uint16_t diff);
+void menu_display(void);
+e_menu_output_event menu_event(e_menu_input_event event);
 
 #endif /* MENU_H_ */

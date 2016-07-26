@@ -174,7 +174,7 @@ void display_write_number(uint16_t number, bool leading_zeros)
     do
     {
         tmp = (number / i) % 10U;
-        if ((leading_zeros == true) || (tmp != 0U)) not_zero = true;
+        if ((leading_zeros == true) || (tmp != 0U) || (i == 1U)) not_zero = true;
         if (not_zero == true) display_write_char('0' + tmp);
         i /= 10U;
     } while(i != 0U);

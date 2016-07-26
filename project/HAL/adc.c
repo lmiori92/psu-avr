@@ -132,8 +132,8 @@ void adc_init(void)
     /* Disable Free Running Mode (we want to change channel in the ISR) */
     //ADCSRA &= ~(1 << ADFR);
 
-    /* Set the Prescaler to 128 */
-    ADCSRA |= (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0) |
+    /* Set the Prescaler to 64 */
+    ADCSRA |= (1 << ADPS2) | (1 << ADPS1) | (0 << ADPS0) |
               /* Set ADIE in ADCSRA (0x7A) to enable the ADC interrupt. */
               (1 << ADIE) |
               /* Kickstart the process */
