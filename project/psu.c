@@ -30,6 +30,7 @@
 #include "psu.h"
 #include "uart.h"
 #include "remote.h"
+#include "settings.h"
 #include "system.h"
 #include "time_m.h"
 
@@ -44,9 +45,6 @@
 
 #define SMOOTHING_SIZE      (sizeof(smoothing_deltat) / sizeof(smoothing_deltat[0]))
 
-//#define ENCODER_QUEUE_SIZE       10U
-//static uint8_t encoder_queue_index = 0U;
-//static e_enc_event encoder_queue[ENCODER_QUEUE_SIZE];
 static bool encoder_menu_mode = false;
 
 /* CONSTANTS */
@@ -101,12 +99,25 @@ static uint8_t bool_values[2] = { 1, 0 };
 static char* bool_labels[2] = { "YES", "NO" };
 static t_menu_extra_list menu_extra_3 = { 2U, 0U, bool_labels, bool_values };
 
+uint16_t duty;
+
 static t_menu_item menu_test[] = {  {"P", (void*)&psu_channels[0].current_limit_pid.P_Factor, MENU_TYPE_NUMERIC_16 },
                                     {"I", (void*)&psu_channels[0].current_limit_pid.I_Factor, MENU_TYPE_NUMERIC_16 },
                                     {"D", (void*)&psu_channels[0].current_limit_pid.D_Factor, MENU_TYPE_NUMERIC_16 },
-                                    {"d.I", (void*)&psu_channels[0].current_limit_pid.sumError, MENU_TYPE_NUMERIC_32 },
-                                    {"c.t", (void*)&application.cycle_time, MENU_TYPE_NUMERIC_32 },
-                                    {"c.t.m", (void*)&application.cycle_time_max, MENU_TYPE_NUMERIC_32 },
+                                    {"Isr", (void*)&psu_channels[0].current_setpoint.value.raw, MENU_TYPE_NUMERIC_16 },
+                                    {"Iss", (void*)&psu_channels[0].current_setpoint.value.scaled, MENU_TYPE_NUMERIC_16 },
+                                    {"Vss", (void*)&psu_channels[0].voltage_setpoint.value.scaled, MENU_TYPE_NUMERIC_16 },
+                                    {"Vsr", (void*)&psu_channels[0].voltage_setpoint.value.raw, MENU_TYPE_NUMERIC_16 },
+
+                                    {"Irr", (void*)&psu_channels[0].current_readout.value.raw, MENU_TYPE_NUMERIC_16 },
+                                    {"Irs", (void*)&psu_channels[0].current_readout.value.scaled, MENU_TYPE_NUMERIC_16 },
+                                    {"Vrs", (void*)&psu_channels[0].voltage_readout.value.scaled, MENU_TYPE_NUMERIC_16 },
+                                    {"Vrr", (void*)&psu_channels[0].voltage_readout.value.raw, MENU_TYPE_NUMERIC_16 },
+                                    {"duty", (void*)&duty, MENU_TYPE_NUMERIC_16 },
+
+ //                                   {"d.I", (void*)&psu_channels[0].current_limit_pid.sumError, MENU_TYPE_NUMERIC_32 },
+//                                    {"c.t", (void*)&application.cycle_time, MENU_TYPE_NUMERIC_32 },
+//                                    {"c.t.m", (void*)&application.cycle_time_max, MENU_TYPE_NUMERIC_32 },
                                     /*{"PID", (void*)&menu_extra_3, MENU_TYPE_LIST },*/
                                     {"BACK", NULL, MENU_TYPE_BACK }
                                     };
@@ -506,7 +517,7 @@ static void psu_init_channel(t_psu_channel *channel, e_psu_channel psu_ch, bool 
     channel->current_readout.scale.min = 0;
     channel->current_readout.scale.max = ADC_RESOLUTION;  /* ADC steps */
     channel->current_readout.scale.min_scaled = 0;
-    channel->current_readout.scale.max_scaled = 2048;     /* Voltage */
+    channel->current_readout.scale.max_scaled = 2200;     /* Current */
 
     channel->voltage_setpoint.scale.min = 0;
     channel->voltage_setpoint.scale.max = 28500;
@@ -514,11 +525,11 @@ static void psu_init_channel(t_psu_channel *channel, e_psu_channel psu_ch, bool 
     channel->voltage_setpoint.scale.max_scaled = pwm_get_resolution(channel->voltage_pwm_channel);
 
     channel->current_setpoint.scale.min = 0;
-    channel->current_setpoint.scale.max = 2048;
+    channel->current_setpoint.scale.max = 2200;
     channel->current_setpoint.scale.min_scaled = 0;
     channel->current_setpoint.scale.max_scaled = pwm_get_resolution(channel->current_pwm_channel);
 
-    pid_Init(1,0,0, &channel->current_limit_pid);
+    pid_Init(1,10,1, &channel->current_limit_pid);
 }
 
 static void psu_init(void)
@@ -671,7 +682,7 @@ static void psu_input_processing(void)
         if (psu_channels[i].remote_or_local == false)
         {
             /* Local channel */
-//            psu_adc_processing(&psu_channels[i]);
+            psu_adc_processing(&psu_channels[i]);
             /* handled in the high priority routine */
 
             /* Heartbeat */
@@ -704,7 +715,7 @@ static void psu_output_processing(void)
 
     for (i = 0; i < (uint8_t)PSU_CHANNEL_NUM; i++)
     {
-        if (psu_channels[i].state == PSU_STATE_OPERATIONAL)
+//        if (psu_channels[i].state == PSU_STATE_OPERATIONAL)
         {
             /* Pre-processing (scaling) of the values */
             psu_preprocessing(&psu_channels[i]);
@@ -715,14 +726,14 @@ static void psu_output_processing(void)
 
                 /* handled in the high priority routine */
 
-//                psu_pwm_processing(&psu_channels[i]);
+                psu_pwm_processing(&psu_channels[i]);
             }
             else
             {
                 if ((application.master_or_slave == true) && (psu_channels[i].node_id > 0U))
                 {
                     /* Slave(s)<->Master communication takes care of that */
-                    remote_encode_datagram(DATATYPE_SETPOINTS, &psu_channels[i]);
+                    //remote_encode_datagram(DATATYPE_SETPOINTS, &psu_channels[i]);
                 }
                 else
                 {
@@ -863,7 +874,8 @@ static e_psu_gui_menu psu_menu_handler(e_psu_gui_menu page)
 
         if (menu_evt_out == MENU_EVENT_OUTPUT_EXTRA_EDIT)
         {
-            pid_Init(psu_channels[0].current_limit_pid.P_Factor, psu_channels[0].current_limit_pid.I_Factor, psu_channels[0].current_limit_pid.D_Factor, &psu_channels[0].current_limit_pid);
+//            pid_Init(psu_channels[0].current_limit_pid.P_Factor, psu_channels[0].current_limit_pid.I_Factor, psu_channels[0].current_limit_pid.D_Factor, &psu_channels[0].current_limit_pid);
+//            pid_Reset_Integrator(&psu_channels[0].current_limit_pid);
         }
         else if (menu_evt_out == MENU_EVENT_OUTPUT_BACK)
         {
@@ -935,6 +947,17 @@ void psu_app_init(void)
     display_clear_all();
     display_enable_cursor(false);
 
+    /* Settings (parameters) */
+    settings_init();
+
+    /* Read the data out the persistent storage */
+    settings_read_from_storage();
+
+    // testing
+    setting_set_2(SETTING_CAL_CURRENT_ZERO, 0x1234);
+    setting_set_2(SETTING_CAL_VOLTAGE_ZERO, 0x5678);
+    settings_save_to_storage(SETTING_NUM_SETTINGS);
+
     /* ...splash screen (busy wait, changed later) */
     display_write_string("IlLorenz");
     display_set_cursor(1, 0);
@@ -952,29 +975,36 @@ void psu_app_init(void)
 
    // DBG_CONFIG;
     /* 10 kHz PID routine handler */
-    OCR0B = 200;
+    //OCR0B = 200;
 
     /* enable output compare match interrupt on timer B */
-    TIMSK0 |= (1 << OCIE0B);
+    //TIMSK0 |= (1 << OCIE0B);
 
 }
 
-ISR(TIMER0_COMPB_vect)
-{
-
-    /* ADC readout */
-    //psu_adc_processing(&psu_channels[0]);
-
-    /* PID controller */
-    psu_channels[0].voltage_setpoint.value.scaled = pid_Controller(psu_channels[0].current_setpoint.value.scaled,
-                                                                           adc_get(psu_channels[0].current_adc_channel),
-                                                                           &psu_channels[0].current_limit_pid);
-
-    /* PWM */
-    pwm_set_duty(PWM_CHANNEL_0, psu_channels[0].voltage_setpoint.value.scaled);
-    //psu_pwm_processing(&psu_channels[0]);
-
-}
+//ISR(TIMER0_COMPB_vect)
+//{
+//
+//    uint16_t adc_cur;
+//    adc_cur = adc_get(ADC_1);
+//
+//    /* ADC readout */
+//    psu_channels[0].current_readout.value.raw = adc_cur;
+//
+//    /* PID controller */
+//    int16_t temp;
+//    temp = pid_Controller(150,
+//                                                                   adc_cur,
+//                                                                   &psu_channels[0].current_limit_pid);
+//
+//    if (temp > 0x3FF) { temp = 0x3FF; pid_Reset_Integrator(&psu_channels[0].current_limit_pid); }
+//    if (temp < 0) { temp = 0; pid_Reset_Integrator(&psu_channels[0].current_limit_pid); }
+//
+//    duty = (uint16_t)temp;
+//    /* PWM */
+//    pwm_set_duty(PWM_CHANNEL_0, duty);
+//
+//}
 
 __attribute__((always_inline)) void inline psu_app(void)
 {

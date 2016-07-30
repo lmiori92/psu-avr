@@ -12,15 +12,12 @@ C_SRCS += \
 ../menu.c \
 ../pid.c \
 ../psu.c \
-../remote.c 
+../remote.c \
+../settings.c 
 
 O_SRCS += \
 ../display.o \
-../keypad.o \
 ../lib.o \
-../menu.o \
-../pid.o \
-../psu.o \
 ../remote.o 
 
 OBJS += \
@@ -32,7 +29,8 @@ OBJS += \
 ./menu.o \
 ./pid.o \
 ./psu.o \
-./remote.o 
+./remote.o \
+./settings.o 
 
 C_DEPS += \
 ./display.d \
@@ -43,7 +41,8 @@ C_DEPS += \
 ./menu.d \
 ./pid.d \
 ./psu.d \
-./remote.d 
+./remote.d \
+./settings.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes

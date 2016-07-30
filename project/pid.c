@@ -36,8 +36,8 @@ void pid_Init(int16_t p_factor, int16_t i_factor, int16_t d_factor, struct PID_D
 // Set up PID controller parameters
 {
   // Start values for PID controller
-//  pid->sumError = 0;
-//  pid->lastProcessValue = 0;
+  pid->sumError = 0;
+  pid->lastProcessValue = 0;
   // Tuning constants for PID loop
   pid->P_Factor = p_factor;
   pid->I_Factor = i_factor;
