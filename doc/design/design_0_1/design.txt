@@ -1,0 +1,62 @@
+#############
+G E N E R A L
+#############
+
+This first design was involving the several devices and connections:
+
+atmega328 - MASTER      - GUI, 2x 10bit PWM, 2x 8bit PWM
+attiny85  - SLAVE CH 1  - 2x ADC, SW-UART to master
+attiny85  - SLAVE CH 2  - 2x ADC, SW-UART to master
+
+###########################
+(O P T O) I S O L A T I O N
+###########################
+
+The main issue is that the primary requirement is to have 2 fully independent
+channels and this implies the 2 channels to be fully isolated (i.e. no common
+ground/earth).
+The solution is to use the attiny85 on the isolated side to perform ADC
+readings and then transfer them via an optocoupled UART link (one-wire)
+On the other hand, the 2 PWM signals are sent through an optoisolator and then
+buffered and cleaned up by the usage of a CMOS/TTL Schmitt-Trigger buffer stage.
+
+#######################
+O B S E R V A T I O N S
+#######################
+
+Most optocouplers (say, the ones I have at disposal) have a rise time and a fall
+time which are in the range 2-10 us and this can pose a problem when handling
+mid-high PWM frequencies and small duty cycles.
+Some success has been observed when the optocoupler is really fine-tuned and
+its bias point spot-on: the resulting waveform was quite accurate, with a slight
+delay of about 2 us and an error of about +1% on the duty cycle.
+Why +1%? This is because the fall time of the optocouplers is generally much higher
+than the rise time (at least 2-4 times) due to photo-transistor capacitance and
+since the stage is inverting the schmitt trigger buffer is "more time on" with
+respect to the original waveform.
+Some data:
+
+PWM supply voltage: 5V
+
+Part: 4N35   - LED 330Ohm - LOAD 10kOhm - BASE 39kOhm [base resistor helps high falling time]
+Part: PS2565 - LED 330Ohm - LOAD 330Ohm
+
+Both configurations are giving good results with a frequency of ~3kHz.
+
+
+#######################
+C O N C L U S I O N S
+#######################
+
+Transfering a (low freq) PWM signal through an optocoupler is well possible within a certain
+degree of accuracy and precision but a low frequency also means unacceptable ripple levels.
+The major observed problem is part selection: every part has its own characteristic and the
+PWM relies on precision duty cycle factor and on-off times which is not obtainable in a
+consistent way between parts (and by "parts" also samples of the same "part"), and bias
+adjusting is slightly different.
+Moreover, my knowledge about the topic is not sufficient to easily find a way to tackle
+the biasing problem and overcome the slow rising and falling times.
+Last but not least, good performing optocouplers are costly and not suitable for a hobby
+project in the long term (difficult to repair/upgrade, etc...)
+
+=> Hence this desing is left aside for the moment.

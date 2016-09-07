@@ -1,0 +1,45 @@
+The attiny85 is constantly sending on the one-wire UART (tx only) a datagram,
+whose bits/bytes are described later in the document. 
+The atmega328 (master) is constantly polling data from the one-wire UART (rx only),
+receiving the datagram and checking its integrity.
+
+########
+DATAGRAM
+########
+
+################################################################
+#BYTE-0##BYTE-1##BYTE-2##BYTE-3##BYTE-4##BYTE-5##BYTE-6##BYTE-7#
+################################################################
+
+BYTE-8: SYNC (0xDE)
+BYTE-9: SYNC (0xAD)
+BYTE-10: SYNC (0xBE)
+BYTE-11: SYNC (0xEF)
+BYTE-2: LSB ADC-0
+BYTE-3: MSB ADC-0 (6 spare bits for general usage)
+BYTE-4: LSB ADC-1
+BYTE-5: MSB ADC-1 (6 spare bits for general usage)
+BYTE-6: LSB ADC-2
+BYTE-7: MSB ADC-2 (6 spare bits for general usage)
+BYTE-0: LSB CRC16
+BYTE-1: MSB CRC16
+<1ms wait time>
+
+The CRC-16 is computed by using lib-avr-gcc utilities over the bytes from BYTE-2 to BYTE-7 (inclusive).
+
+##########
+LOGIC
+##########
+
+The master continuously receives the data, waiting for 4 sync bytes.
+Once the 4 sync bytes are received, the next 8 bytes are considered
+a valid message. The data is then checked against its CRC.
+If the master atmega328 acknowledges the following situations:
+(A) CRC does not conform to the expected value.
+(B) Datagram is not received.
+(C) Length is unexpected.
+(D) No sync found.
+
+For each of the situations an associated timer is set and if this timer
+expires (i.e. one or more of the situations have not been restored) the
+power supply node is considered as "down-malfunctioning".
