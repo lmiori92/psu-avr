@@ -13,17 +13,23 @@
 
 typedef enum
 {
+    SETTING_STATE_CHANGED = 0x01U,
+    SETTING_STATE_VALID   = 0x02U
+} e_setting_property;
+
+typedef enum
+{
     SETTING_VERSION,
 
-    SETTING_CAL_CURRENT_ZERO,
-    SETTING_CAL_VOLTAGE_ZERO,
-    SETTING_CAL_CURRENT_TOP,
-    SETTING_CAL_VOLTAGE_TOP,
+//    SETTING_CAL_CURRENT_ZERO,
+//    SETTING_CAL_VOLTAGE_ZERO,
+//    SETTING_CAL_CURRENT_TOP,
+//    SETTING_CAL_VOLTAGE_TOP,
 
-    SETTING_CAL_CURRENT_ZERO_SCALE,
-    SETTING_CAL_VOLTAGE_ZERO_SCALE,
-    SETTING_CAL_CURRENT_TOP_SCALE,
-    SETTING_CAL_VOLTAGE_TOP_SCALE,
+//    SETTING_CAL_CURRENT_ZERO_SCALE,
+//    SETTING_CAL_VOLTAGE_ZERO_SCALE,
+//    SETTING_CAL_CURRENT_TOP_SCALE,
+//    SETTING_CAL_VOLTAGE_TOP_SCALE,
 
     SETTING_NUM_SETTINGS
 } e_settings_available;
@@ -42,7 +48,7 @@ typedef enum
 typedef struct
 {
     e_setting_type type;
-    bool           changed;
+    bool           state;
 
     union
     {
@@ -50,14 +56,15 @@ typedef struct
         uint16_t byte2;
         uint32_t byte4;
         bool     byteB;
+        uint8_t  byte_array[4U];
     } u_setting_value;
 
 } t_setting;
 
 void settings_init(void);
 
-bool setting_is_changed(e_settings_available setting);
-void setting_set_changed(e_settings_available setting, bool changed);
+bool setting_has_property(e_settings_available setting, e_setting_property property);
+void setting_set_property(e_settings_available setting, e_setting_property property, bool state);
 
 void settings_save_to_storage(e_settings_available setting);
 void settings_read_from_storage(void);

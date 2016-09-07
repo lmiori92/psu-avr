@@ -27,7 +27,7 @@
  */
 
 #ifndef DISPLAY_H_
-#define DISPLAY_H_
+#define DEASPLAY_H_
 
 /*
     This program is free software: you can redistribute it and/or modify

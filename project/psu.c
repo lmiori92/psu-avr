@@ -953,10 +953,18 @@ void psu_app_init(void)
     /* Read the data out the persistent storage */
     settings_read_from_storage();
 
-    // testing
-    setting_set_2(SETTING_CAL_CURRENT_ZERO, 0x1234);
-    setting_set_2(SETTING_CAL_VOLTAGE_ZERO, 0x5678);
-    settings_save_to_storage(SETTING_NUM_SETTINGS);
+    if (setting_has_property(SETTING_VERSION, SETTING_STATE_VALID) == true)
+    {
+        // testing
+        setting_set_1(SETTING_VERSION, setting_get_1(SETTING_VERSION, 0U) + 1);
+        settings_save_to_storage(SETTING_NUM_SETTINGS);
+    }
+    else
+    {
+        // no valid storage : do not save yet!
+        setting_set_1(SETTING_VERSION, 0xFF);
+        settings_save_to_storage(SETTING_NUM_SETTINGS);
+    }
 
     /* ...splash screen (busy wait, changed later) */
     display_write_string("IlLorenz");

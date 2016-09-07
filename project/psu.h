@@ -97,7 +97,7 @@ typedef struct
 {
     bool     flag;
     uint32_t timestamp;
-} t_timer;
+} t_timer32;
 
 typedef struct
 {
@@ -109,7 +109,7 @@ typedef struct
 
     bool           master_or_slave;             /**< True: is a master; False: is a slave */
 
-    t_timer        flag_50ms;                   /**< True when 50ms have been passed; False: the immediate next cycle */
+    t_timer32        flag_50ms;                   /**< True when 50ms have been passed; False: the immediate next cycle */
     uint32_t       cycle_time;                  /**< Cycle Time (main application thread) */
     uint32_t       cycle_time_max;
 } t_application;
