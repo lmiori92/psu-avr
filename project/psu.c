@@ -21,7 +21,6 @@
 
 #include "HAL/inc/adc.h"
 #include "HAL/inc/encoder.h"
-#include "keypad.h"
 #include "HAL/inc/pwm.h"
 #include "psu.h"
 #include "HAL/inc/uart.h"
@@ -41,6 +40,7 @@
 #include "deasplay/deasplay.h"
 #include "lorenzlib/lib.h"
 #include "megnu/menu.h"
+#include "keypad/keypad.h"
 
 /* DEFINES */
 
