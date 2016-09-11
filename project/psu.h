@@ -31,7 +31,7 @@
 
 #include "adc.h"
 #include "pwm.h"
-#include "lib.h"
+#include "lorenzlib/lib.h"
 #include "pid.h"
 
 #include <stdint.h>

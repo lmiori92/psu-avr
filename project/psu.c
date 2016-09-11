@@ -20,12 +20,8 @@
 */
 
 #include "adc.h"
-#include "display.h"
-#include "display_config.h"
 #include "encoder.h"
-#include "lib.h"
 #include "keypad.h"
-#include "menu.h"
 #include "pwm.h"
 #include "psu.h"
 #include "uart.h"
@@ -40,6 +36,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+
+/* External Library */
+#include "deasplay/deasplay.h"
+#include "lorenzlib/lib.h"
+#include "megnu/menu.h"
 
 /* DEFINES */
 
@@ -623,7 +624,6 @@ static void init_io(void)
     timer_init();
 
     /* Display: set the intended HAL and initialize the subsystem */
-    display_select();
     display_init();
 
     /* Encoder */
@@ -944,7 +944,7 @@ void psu_app_init(void)
     psu_init();
 
     /* Default state for the display */
-    display_clear_all();
+    display_clear();
     display_enable_cursor(false);
 
     /* Settings (parameters) */
@@ -976,7 +976,7 @@ void psu_app_init(void)
 
     timer_delay_ms(2000);   /* splashscreen! */
 
-    display_clear_all();
+    display_clear();
 
     /* start with the following menu page */
     menu_page = PSU_MENU_STARTUP;

@@ -10,7 +10,8 @@
 
 #include "eeprom.h"
 
-#include "lib.h"    /* crc16 */
+/* External Library */
+#include "lorenzlib/lib.h"     /* CRC16 CCITT */
 
 #define PERSISTENT_CRC_START    0U
 #define PERSISTENT_DATA_START  20U
@@ -151,12 +152,6 @@ void settings_read_from_storage(void)
 
         if (computed_crc != stored_crc)
         {
-            FILE* a = fopen("computed_crc", "w");
-            FILE* b = fopen("stored_crc", "w");
-            fwrite(&computed_crc, 2, 1, a);
-            fwrite(&stored_crc, 2, 1, b);
-            fclose(a);
-            fclose(b);
             /* invalid crc ! */
             setting_set_property((e_settings_available)param, SETTING_STATE_VALID, false);
         }
