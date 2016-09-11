@@ -30,10 +30,10 @@
 #include <avr/interrupt.h>
 #include <stdint.h>
 
-#include "encoder.h"
+#include "inc/encoder.h"
 
-#include "system.h"
-#include "time_m.h"
+#include "inc/system.h"
+#include "inc/time_m.h"
 
 #define ENC_DDR     DDRD
 #define ENC_PORT    PORTD

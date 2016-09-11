@@ -30,7 +30,7 @@
 #endif
 #include <util/setbaud.h>
 
-#include "uart.h"
+#include "inc/uart.h"
 
 /* http://www.cs.mun.ca/~rod/Winter2007/4723/notes/serial/serial.html */
 

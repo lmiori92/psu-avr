@@ -29,8 +29,8 @@
 #include <avr/interrupt.h>
 #include <avr/io.h>
 
-#include "uart.h"
-#include "system.h"
+#include "inc/uart.h"
+#include "inc/system.h"
 
 /* http://www.avrfreaks.net/forum/soft-c-avrgcc-monitoring-stack-usage */
 #ifdef STACK_MONITORING

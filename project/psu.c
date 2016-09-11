@@ -19,16 +19,16 @@
 
 */
 
-#include "adc.h"
-#include "encoder.h"
+#include "HAL/inc/adc.h"
+#include "HAL/inc/encoder.h"
 #include "keypad.h"
-#include "pwm.h"
+#include "HAL/inc/pwm.h"
 #include "psu.h"
-#include "uart.h"
+#include "HAL/inc/uart.h"
 #include "remote.h"
 #include "settings.h"
-#include "system.h"
-#include "time_m.h"
+#include "HAL/inc/system.h"
+#include "HAL/inc/time_m.h"
 
 /* Standard Library */
 

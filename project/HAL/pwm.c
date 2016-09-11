@@ -29,7 +29,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#include "pwm.h"
+#include "inc/pwm.h"
 
 #define PWM_FREQ        0x03FFU  /**< determines PWM frequency (15.6 kHz) */
 #define PWM_MODE        1U       /* Fast (1) or Phase Correct (0) */

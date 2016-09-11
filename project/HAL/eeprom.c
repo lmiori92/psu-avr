@@ -5,7 +5,7 @@
  *      Author: lorenzo
  */
 
-#include "eeprom.h"
+#include "inc/eeprom.h"
 
 #include "avr/eeprom.h"
 

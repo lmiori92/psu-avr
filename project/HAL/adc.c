@@ -32,9 +32,9 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stdbool.h>
-#include "adc.h"
+#include "inc/adc.h"
 
-#include "time_m.h"
+#include "inc/time_m.h"
 
 /* Quick noise debug */
 #ifdef ADC_NOISE_DEBUG
