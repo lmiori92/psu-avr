@@ -176,6 +176,7 @@ ISR(TWI_vect)
 {
     static uint8_t i2c_buf_pos;
 
+    /* mask the register to be compatible also with other prescaler values */
     switch (TWSR & 0xF8U)
     {
     case TWI_START:
