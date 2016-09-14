@@ -28,6 +28,7 @@
 
 #include <avr/interrupt.h>
 #include <avr/io.h>
+#include <avr/wdt.h>
 
 #include "inc/uart.h"
 #include "inc/system.h"
@@ -122,6 +123,11 @@ uint8_t system_init(void)
 
     /* CODING PIN (MASTER/SLAVE) configuration */
     CODING_CONFIG;
+
+    /* Watchdog initialize */
+    //wdt_enable(WDTO_250MS);
+    //wdt_reset();
+
 
     return t;
 }
