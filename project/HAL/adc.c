@@ -31,6 +31,8 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <util/atomic.h>
+
 #include <stdbool.h>
 #include "inc/adc.h"
 
@@ -50,9 +52,8 @@ uint16_t last_captureS = 0;           /**< Last reading */
 #define DBG_CONFIG   DDRD |= (1 << PIN2)
 #endif
 
-static uint8_t  adc_mux_index;
 static bool     adc_mux_switch;
-static uint16_t adc_samples[ADC_NUM];
+static uint8_t adc_samples[ADC_NUM * 2U];
 
 /**
  * ISR(ADC_vect)
@@ -77,15 +78,25 @@ ISR(ADC_vect)
     if (last_captureS > adc_maxS) adc_maxS = last_captureS;
     if (last_captureS < adc_minS) adc_minS = last_captureS;
 #else
+    uint8_t tmp = ADMUX & ((1 << MUX3) | (1 << MUX2) | (1 << MUX1) | (1 << MUX0));
     if (adc_mux_switch == false)
     {
         /* Store the value */
-        adc_samples[adc_mux_index] = (ADCL | (ADCH << 8U));
-        /* Advance the MUX index */
-        adc_mux_index = (adc_mux_index + 1) % ADC_NUM;
-        /* Update the ADC MUX register */
+        adc_samples[tmp] = ADCL;
+        adc_samples[tmp + 1U] = ADCH;
+        /* Advance/Update the ADC MUX register */
         ADMUX &= ~((1 << MUX3) | (1 << MUX2) | (1 << MUX1) | (1 << MUX0));
-        ADMUX |= adc_mux_index;
+
+        if (tmp < (((uint8_t)ADC_NUM) - 1U))
+        {
+            /* go to the next channel */
+            ADMUX++;
+        }
+        else
+        {
+            /* start from the first channel */
+        }
+
         adc_mux_switch = true;
     }
     else
@@ -165,7 +176,17 @@ void adc_periodic(void)
 
 uint16_t adc_get(e_adc_channel channel)
 {
-    return adc_samples[channel];
+    uint16_t tmp;
+
+    ATOMIC_BLOCK(ATOMIC_FORCEON)
+    {
+        /* Critical section */
+        tmp   = adc_samples[channel + 1U];
+        tmp <<= 8U;
+        tmp  |= adc_samples[channel];
+    }
+
+    return tmp;
 }
 
 /**
