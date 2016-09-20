@@ -5,7 +5,7 @@
     (at your option) any later version.
 
     This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty ofads_get_config
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -21,6 +21,8 @@
 
 #include "HAL/inc/adc.h"
 #include "HAL/inc/encoder.h"
+#include "i2c/i2c_master.h"
+#include "HAL/driver/adc/ads1015.h"
 #include "HAL/inc/pwm.h"
 #include "psu.h"
 #include "HAL/inc/uart.h"
@@ -99,10 +101,44 @@ static e_psu_gui_menu menu_page;
 static uint8_t bool_values[2] = { 1, 0 };
 static char* bool_labels[2] = { "YES", "NO" };
 static t_menu_extra_list menu_extra_3 = { 2U, 0U, bool_labels, bool_values };
-
+uint16_t cfg_ads1015;
+uint16_t conv_ads1015;
+uint16_t conv_ads1015_isr;
 uint16_t duty;
+uint16_t tmo_cnt = 0;
 
-static t_menu_item menu_test[] = {  {"P", (void*)&psu_channels[0].current_limit_pid.P_Factor, MENU_TYPE_NUMERIC_16 },
+static t_menu_item menu_test[20];// = {
+//        {"cfg", (void*)&cfg_ads1015, MENU_TYPE_NUMERIC_16 },
+//        {"conv", (void*)&conv_ads1015, MENU_TYPE_NUMERIC_16 },
+//        {"P", (void*)&psu_channels[0].current_limit_pid.P_Factor, MENU_TYPE_NUMERIC_16 },
+//                                    {"I", (void*)&psu_channels[0].current_limit_pid.I_Factor, MENU_TYPE_NUMERIC_16 },
+//                                    {"D", (void*)&psu_channels[0].current_limit_pid.D_Factor, MENU_TYPE_NUMERIC_16 },
+//                                    {"Isr", (void*)&psu_channels[0].current_setpoint.value.raw, MENU_TYPE_NUMERIC_16 },
+//                                    {"Iss", (void*)&psu_channels[0].current_setpoint.value.scaled, MENU_TYPE_NUMERIC_16 },
+//                                    {"Vss", (void*)&psu_channels[0].voltage_setpoint.value.scaled, MENU_TYPE_NUMERIC_16 },
+//                                    {"Vsr", (void*)&psu_channels[0].voltage_setpoint.value.raw, MENU_TYPE_NUMERIC_16 },
+//
+//                                    {"Irr", (void*)&psu_channels[0].current_readout.value.raw, MENU_TYPE_NUMERIC_16 },
+//                                    {"Irs", (void*)&psu_channels[0].current_readout.value.scaled, MENU_TYPE_NUMERIC_16 },
+//                                    {"Vrs", (void*)&psu_channels[0].voltage_readout.value.scaled, MENU_TYPE_NUMERIC_16 },
+//                                    {"Vrr", (void*)&psu_channels[0].voltage_readout.value.raw, MENU_TYPE_NUMERIC_16 },
+//                                    {"duty", (void*)&duty, MENU_TYPE_NUMERIC_16 },
+//
+// //                                   {"d.I", (void*)&psu_channels[0].current_limit_pid.sumError, MENU_TYPE_NUMERIC_32 },
+////                                    {"c.t", (void*)&application.cycle_time, MENU_TYPE_NUMERIC_32 },
+////                                    {"c.t.m", (void*)&application.cycle_time_max, MENU_TYPE_NUMERIC_32 },
+//                                    /*{"PID", (void*)&menu_extra_3, MENU_TYPE_LIST },*/
+//                                    {"BACK", NULL, MENU_TYPE_BACK }
+//                                    };
+
+#include "avr/eeprom.h"     /* EEMEM definitions   */
+#include "avr/pgmspace.h"   /* PROGMEM definitions */
+
+static const PROGMEM t_menu_item menu_test_eeprom[] = {
+        {"cfg", (void*)&cfg_ads1015, MENU_TYPE_NUMERIC_16 },
+        {"conv", (void*)&conv_ads1015, MENU_TYPE_NUMERIC_16 },
+        {"set", (void*)&tmo_cnt, MENU_TYPE_NUMERIC_16 },
+        {"P", (void*)&psu_channels[0].current_limit_pid.P_Factor, MENU_TYPE_NUMERIC_16 },
                                     {"I", (void*)&psu_channels[0].current_limit_pid.I_Factor, MENU_TYPE_NUMERIC_16 },
                                     {"D", (void*)&psu_channels[0].current_limit_pid.D_Factor, MENU_TYPE_NUMERIC_16 },
                                     {"Isr", (void*)&psu_channels[0].current_setpoint.value.raw, MENU_TYPE_NUMERIC_16 },
@@ -116,7 +152,7 @@ static t_menu_item menu_test[] = {  {"P", (void*)&psu_channels[0].current_limit_
                                     {"Vrr", (void*)&psu_channels[0].voltage_readout.value.raw, MENU_TYPE_NUMERIC_16 },
                                     {"duty", (void*)&duty, MENU_TYPE_NUMERIC_16 },
 
- //                                   {"d.I", (void*)&psu_channels[0].current_limit_pid.sumError, MENU_TYPE_NUMERIC_32 },
+                                   {"d.I", (void*)&psu_channels[0].current_limit_pid.sumError, MENU_TYPE_NUMERIC_32 },
 //                                    {"c.t", (void*)&application.cycle_time, MENU_TYPE_NUMERIC_32 },
 //                                    {"c.t.m", (void*)&application.cycle_time_max, MENU_TYPE_NUMERIC_32 },
                                     /*{"PID", (void*)&menu_extra_3, MENU_TYPE_LIST },*/
@@ -530,7 +566,7 @@ static void psu_init_channel(t_psu_channel *channel, e_psu_channel psu_ch, bool 
     channel->current_setpoint.scale.min_scaled = 0;
     channel->current_setpoint.scale.max_scaled = pwm_get_resolution(channel->current_pwm_channel);
 
-    pid_Init(1,10,1, &channel->current_limit_pid);
+    pid_Init(10,25,10, &channel->current_limit_pid);
 }
 
 static void psu_init(void)
@@ -633,8 +669,15 @@ static void init_io(void)
     /* Keypad */
     keypad_init();
 
+    /* I2C bus and peripherals */
+    i2c_init();
+
     system_interrupt_enable();
 
+//    eeprom_read_block(menu_test, menu_test_eeprom, sizeof(menu_test_eeprom));
+    memcpy_P(menu_test, menu_test_eeprom, sizeof(menu_test_eeprom));
+
+    ads_init();
 }
 
 static void psu_adc_processing(t_psu_channel *channel)
@@ -983,15 +1026,58 @@ void psu_app_init(void)
 
    // DBG_CONFIG;
     /* 10 kHz PID routine handler */
-    //OCR0B = 200;
+    OCR0B = 200;
 
     /* enable output compare match interrupt on timer B */
-    //TIMSK0 |= (1 << OCIE0B);
+    TIMSK0 |= (1 << OCIE0B);
 
 }
+#include <util/atomic.h>
+ISR(TIMER0_COMPB_vect)
+{
+    static uint8_t isr_timer;
+    static bool atomic_lock;
 
-//ISR(TIMER0_COMPB_vect)
-//{
+    /* immediately re-enable interrupts */
+    sei();
+
+    ATOMIC_BLOCK(ATOMIC_FORCEON)
+    {
+        if (atomic_lock == TRUE)
+        {
+            return;
+        }
+        atomic_lock = TRUE;
+    }
+
+    isr_timer++;
+    if (isr_timer > 5)
+    {
+        /* execute logic at 1khz */
+        conv_ads1015_isr = ads_read();
+//        uint8_t state = i2c_get_state_info();
+//        if (state == TWI_TIMEOUT)
+//        {
+//            tmo_cnt++;
+//        }
+        conv_ads1015_isr >>= 4; // bit lost in single ended conversion!
+
+        int16_t temp;
+        int16_t sp = tmo_cnt;
+        int16_t fb = conv_ads1015_isr;
+        uint16_t p;
+        temp = pid_Controller(sp, fb, &psu_channels[0].current_limit_pid);
+        if (temp > 0x3FF) temp = 0x3FF;
+        if (temp < 0) temp = 0;
+        p = (uint16_t)temp;
+        pwm_set_duty(PWM_CHANNEL_0, p);
+
+        isr_timer = 0;
+    }
+
+    /* atomic by defition (1clk) */
+    atomic_lock = FALSE;
+}
 //
 //    uint16_t adc_cur;
 //    adc_cur = adc_get(ADC_1);
@@ -1014,7 +1100,7 @@ void psu_app_init(void)
 //
 //}
 
-__attribute__((always_inline)) void inline psu_app(void)
+void psu_app(void)
 {
 
     static volatile uint32_t start;
@@ -1051,6 +1137,22 @@ __attribute__((always_inline)) void inline psu_app(void)
 
     /* Send out the oldest datagram from the FIFO */
     datagram_buffer_to_remote();
+
+
+#warning "Test onlz!!"
+
+//    cfg_ads1015 = ads_get_config();
+
+
+    static t_low_pass_filter flt;
+    uint16_t tmp;
+    flt.alpha = 100;
+    ATOMIC_BLOCK(ATOMIC_FORCEON)
+    {
+        tmp = conv_ads1015_isr;
+    }
+    low_pass_filter(tmp, &flt);
+    conv_ads1015 =     (uint32_t)flt.output;
 
 #ifdef TIMER_DEBUG
     /* Debug the timer */

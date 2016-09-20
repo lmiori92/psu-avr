@@ -23,6 +23,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <i2c/i2c_master.h>
+#include <avr/delay.h>
 
 /* Standard Library */
 #include "stdint.h"
@@ -66,6 +67,31 @@ uint8_t i2c_busy(void)
     return (TWCR & (1 << TWIE));
 }
 
+/**
+ * Wait for the i2c interface to be ready (= not busy).
+ * A timeout can occur and if so the i2c state will be
+ * set to a TIMEOUT error and the interface reset as well.
+ */
+static inline void i2c_wait_or_timeout(void)
+{
+    uint8_t i = 0;
+    do
+    {
+        i++;
+        _delay_us(1);
+        if (i > I2C_MASTER_TIMEOUT)
+        {
+            /* Set the error ... */
+            i2c_state = TWI_TIMEOUT;
+            /* ... and reset the TWI interface */
+            TWCR = (1 << TWEN) |       // Enable TWI-interface and release TWI pins
+                    (0 << TWIE) | (0 << TWINT) |               // Disable Interrupt
+                    (0 << TWEA) | (0 << TWSTA) | (0 << TWSTO) | // No Signal requests
+                    (0 << TWWC);                                 //
+        }
+    } while (TWCR & (1 << TWIE));
+}
+
 /****************************************************************************
  Call this function to fetch the state information of the previous operation. The function will hold execution (loop)
  until the TWI_ISR has completed with the previous operation. If there was an error, then the function
@@ -80,9 +106,6 @@ uint8_t i2c_busy(void)
  */
 uint8_t i2c_get_state_info(void)
 {
-    /* Wait until TWI is ready for next transmission */
-    do {} while (i2c_busy());
-
     return i2c_state;
 }
 
@@ -104,7 +127,7 @@ void i2c_transfer_set_data(uint8_t *data, uint8_t len)
     {
 
         /* Wait until TWI is ready for next transmission */
-        do {} while (i2c_busy());
+        i2c_wait_or_timeout();
 
         /* set the data pointer */
         i2c_xfer_buffer = data;
@@ -136,7 +159,7 @@ void i2c_transfer_start(void)
     {
 
         /* Wait until TWI is ready for next transmission */
-        do {} while (i2c_busy());
+        i2c_wait_or_timeout();
 
         /* initially, the operation is failed by definition */
         i2c_successful_operation = false;
@@ -163,7 +186,7 @@ void i2c_transfer_start(void)
 uint8_t i2c_transfer_successful(void)
 {
     /* Wait until TWI is ready for next transmission */
-    do {} while (i2c_busy());
+    i2c_wait_or_timeout();
 
     return i2c_successful_operation;
 }

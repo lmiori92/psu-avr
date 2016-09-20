@@ -27,7 +27,7 @@
 								<option id="de.innot.avreclipse.assembler.option.debug.level.859977587" name="Generate Debugging Info" superClass="de.innot.avreclipse.assembler.option.debug.level"/>
 								<inputType id="de.innot.avreclipse.tool.assembler.input.536969527" superClass="de.innot.avreclipse.tool.assembler.input"/>
 							</tool>
-							<tool id="de.innot.avreclipse.tool.compiler.winavr.app.debug.1387872570" name="AVR Compiler" superClass="de.innot.avreclipse.tool.compiler.winavr.app.debug">
+							<tool command="avr-gcc" id="de.innot.avreclipse.tool.compiler.winavr.app.debug.1387872570" name="AVR Compiler" superClass="de.innot.avreclipse.tool.compiler.winavr.app.debug">
 								<option id="de.innot.avreclipse.compiler.option.debug.level.1691752030" name="Generate Debugging Info" superClass="de.innot.avreclipse.compiler.option.debug.level" value="de.innot.avreclipse.compiler.option.debug.level.none" valueType="enumerated"/>
 								<option id="de.innot.avreclipse.compiler.option.optimize.1250332547" name="Optimization Level" superClass="de.innot.avreclipse.compiler.option.optimize" value="de.innot.avreclipse.compiler.optimize.size" valueType="enumerated"/>
 								<option id="de.innot.avreclipse.compiler.option.optimize.shortenums.994769040" name="Short enums (-fshort-enums)" superClass="de.innot.avreclipse.compiler.option.optimize.shortenums" value="true" valueType="boolean"/>
@@ -37,6 +37,7 @@
 								<option id="de.innot.avreclipse.compiler.option.optimize.packstruct.480171479" name="Pack structs (-fpack-struct)" superClass="de.innot.avreclipse.compiler.option.optimize.packstruct" value="false" valueType="boolean"/>
 								<option id="de.innot.avreclipse.compiler.option.optimize.datasections.1345323534" name="Each data item in its own section (-fdata-sections)" superClass="de.innot.avreclipse.compiler.option.optimize.datasections" value="true" valueType="boolean"/>
 								<option id="de.innot.avreclipse.compiler.option.optimize.functionsections.1712044868" name="Each function in its own section (-ffunction-sections)" superClass="de.innot.avreclipse.compiler.option.optimize.functionsections" value="true" valueType="boolean"/>
+								<option id="de.innot.avreclipse.compiler.option.optimize.other.675529845" superClass="de.innot.avreclipse.compiler.option.optimize.other" value="-funit-at-a-time" valueType="string"/>
 								<inputType id="de.innot.avreclipse.compiler.winavr.input.527105226" name="C Source Files" superClass="de.innot.avreclipse.compiler.winavr.input"/>
 							</tool>
 							<tool id="de.innot.avreclipse.tool.cppcompiler.app.debug.569099733" name="AVR C++ Compiler" superClass="de.innot.avreclipse.tool.cppcompiler.app.debug">

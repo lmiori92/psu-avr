@@ -8,6 +8,8 @@
 #ifndef HAL_DRIVER_ADC_ADS1015_H_
 #define HAL_DRIVER_ADC_ADS1015_H_
 
+#include "stdint.h"
+
 /* ADS1015 Address values */
 
 /**  */
@@ -83,8 +85,27 @@
 /**  */
 #define ADS_ADC_DR_3300_SPS         (6U)
 
+/**  */
+#define ADS_ADC_MUX_AIN0_AIN1       (0U)
+/**  */
+#define ADS_ADC_MUX_AIN0_AIN3       (1U)
+/**  */
+#define ADS_ADC_MUX_AIN1_AIN3       (2U)
+/**  */
+#define ADS_ADC_MUX_AIN2_AIN3       (3U)
+/**  */
+#define ADS_ADC_MUX_AIN0_GND        (4U)
+/**  */
+#define ADS_ADC_MUX_AIN1_GND        (5U)
+/**  */
+#define ADS_ADC_MUX_AIN2_GND        (6U)
+/**  */
+#define ADS_ADC_MUX_AIN3_GND        (7U)
 
 void ads_init(void);
-void ads_write_config(void);
+void ads_select_register(uint8_t reg);
+uint16_t ads_read(void);
+void ads_write_config(uint16_t config);
+uint16_t ads_get_config(void);
 
 #endif /* HAL_DRIVER_ADC_ADS1015_H_ */

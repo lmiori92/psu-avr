@@ -33,6 +33,9 @@
 /* (CPU / SCL - 16) / ( 2 * prescaler ) */
 #define TWI_TWBR            (((F_CPU / TWI_CLOCK_TARGET) - 16U) / ( 2U * 1U ))
 
+/** us units. WARNING: no more than 255! */
+#define I2C_MASTER_TIMEOUT  100U
+
 #define TWI_READ_BIT  0       /**< Bit position for R/W bit in "address byte" */
 #define TWI_ADR_BITS  1       /**< Bit position for LSB of the slave address bits in the init byte */
 
@@ -73,6 +76,7 @@
 
 /* TWI Miscellaneous status codes */
 #define TWI_NO_STATE               0xF8  /**< No relevant state information available; TWINT = 0 */
+#define TWI_TIMEOUT                0x01  /**< Bus error due to a timeout */
 #define TWI_BUS_ERROR              0x00  /**< Bus error due to an illegal START or STOP condition */
 
 void    i2c_init(void);
