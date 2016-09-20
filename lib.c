@@ -146,3 +146,20 @@ uint16_t crc16_1021(uint16_t old_crc, uint8_t data)
     return crc;
 
 }
+
+void low_pass_filter(uint16_t input, t_low_pass_filter *filter)
+{
+    uint32_t tmp;
+
+    /* weigh the previous output */
+    tmp = filter->alpha;
+    tmp *= filter->output_last;
+    /* scale the input value and add to it */
+    tmp += 1000U * (uint32_t)input;
+    tmp /= (filter->alpha + 1U);
+    /* save last input value */
+    filter->output_last = tmp;
+
+    /* compute the scaled result */
+    filter->output = (uint16_t)(filter->output_last / 1000U);
+}

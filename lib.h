@@ -27,6 +27,14 @@ typedef struct _t_value_scale
     t_value_type max_scaled;
 } t_value_scale;
 
+typedef struct
+{
+    uint16_t output;
+    uint16_t alpha;
+
+    uint32_t output_last;
+} t_low_pass_filter;
+
 /* Definitions */
 void lib_uint32_to_bytes(uint32_t input, uint8_t *lo, uint8_t *milo, uint8_t *hilo, uint8_t *hi);
 uint16_t lib_bytes_to_uint16(uint8_t lo, uint8_t hi);
@@ -37,5 +45,7 @@ void lib_limit(t_value *value, t_value_scale *scale);
 void lib_scale(t_value *value, t_value_scale *scale);
 
 uint16_t crc16_1021(uint16_t old_crc, uint8_t data);
+
+void low_pass_filter(uint16_t input, t_low_pass_filter *filter);
 
 #endif /* LIB_H_ */
