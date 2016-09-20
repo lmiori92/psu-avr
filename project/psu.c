@@ -60,9 +60,9 @@ const uint8_t psu_channel_node_id_map[PSU_CHANNEL_NUM][2] =
 
 static const uint16_t smoothing_deltat[] =
 {
-    65051, 54845, 47930, 42693, 38477, 34948, 31913, 29251, 26880, 24742, 22796,
-    21010, 19360, 17827, 16395, 15051, 13786, 12590, 11457, 10380, 9354,
-    8374, 7437, 6538, 5675, 4845, 4046, 3275, 2530, 1810, 1113, 500
+    65, 54, 47, 42, 38, 34, 31, 29, 26, 24, 22,
+    21, 19, 17, 16, 15, 13, 12, 11, 10, 9,
+    8, 7, 6, 5, 4, 4, 3, 2, 1, 1, 1
 };
 
 static const uint16_t smoothing_result[SMOOTHING_SIZE] =
@@ -584,7 +584,7 @@ static void psu_init(void)
 
 }
 
-static void encoder_event_callback(e_enc_event event, uint32_t delta_t)
+static void encoder_event_callback(e_enc_event event, uint16_t delta_t)
 {
     uint8_t i;
     uint16_t diff = 0U;

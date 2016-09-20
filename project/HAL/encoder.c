@@ -47,7 +47,7 @@ static const int8_t enc_lookup [] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
 /* coarse encoder lookup table
  * static const int8_t enc_lookup[16] = { 0, 0, -1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, -1, 0, 0 }; */
 #define ENC_LOOKUP_NUM      (sizeof(enc_lookup) / sizeof(enc_lookup[0]))
-#define ENC_TIMEOUT         500000UL            /* us */
+#define ENC_TIMEOUT         500UL            /* ~ms (to improve performance, us are divided by 1024) */
 #define ENC_STEP_COUNT      2                   /* steps to generate an event */
 
 /**
@@ -93,11 +93,11 @@ ISR(PCINT0_vect)
     /* Generate the click event */
     if ((PINB >> PIN0) & 0x01U)
     {
-        g_encoder[0].evt_cb(ENC_EVT_CLICK_DOWN, g_encoder[0].delta_t);
+        g_encoder[0].evt_cb(ENC_EVT_CLICK_DOWN, 0U);
     }
     else
     {
-        g_encoder[0].evt_cb(ENC_EVT_CLICK_UP, g_encoder[0].delta_t);
+        g_encoder[0].evt_cb(ENC_EVT_CLICK_UP, 0U);
     }
 
 }
@@ -112,6 +112,8 @@ ISR(PCINT2_vect)
 {
 
     uint8_t i = 0;  /* left for a future multiple encoder implementation */
+    uint32_t delta_t;
+    e_enc_event evt;
 
     {
         /* Shift the old values */
@@ -119,31 +121,36 @@ ISR(PCINT2_vect)
         /* Store the new values */
         g_encoder[i].pin_raw |= ((ENC_PIN >> g_encoder[i].pin_A) & 0x1U) | (((ENC_PIN >> g_encoder[i].pin_B) & 0x1U) << 1U);
         /* Increment value by the lookup table value */
-        g_encoder[i].raw += enc_lookup[g_encoder[0].pin_raw & 0x0FU];
-        if ((g_timestamp - g_encoder[i].tick) > ENC_TIMEOUT)
+        g_encoder[i].raw += enc_lookup[g_encoder[i].pin_raw & 0x0FU];
+
+        /* Compute the time difference */
+        delta_t  = g_timestamp;
+        delta_t -= g_encoder[i].tick;
+        delta_t /= 1024;
+
+        if (delta_t >= ENC_TIMEOUT)
         {
-            /* Timeout */
-            g_encoder[i].raw = 0;
-            g_encoder[i].pin_raw = 0;
-            g_encoder[i].tick = g_timestamp;
-            g_encoder[i].evt_cb(ENC_EVT_TIMEOUT, g_encoder[i].delta_t);
+            /* Timeout (delta time can never exceed 65535) */
+            delta_t = ENC_TIMEOUT;
+            evt = ENC_EVT_TIMEOUT;
+            goto evt_trig;
         }
         else if (g_encoder[i].raw > 2)
         {
-            g_encoder[i].delta_t = g_timestamp - g_encoder[i].tick;
-            g_encoder[i].value++;
-            g_encoder[i].raw = 0;
-            g_encoder[i].tick = g_timestamp;
-            g_encoder[i].evt_cb(ENC_EVT_RIGHT, g_encoder[i].delta_t);
+            evt = ENC_EVT_RIGHT;
+            goto evt_trig;
         }
         else if (g_encoder[i].raw < -2)
         {
-            g_encoder[i].delta_t = g_timestamp - g_encoder[i].tick;
-            g_encoder[i].value--;
-            g_encoder[i].raw = 0;
-            g_encoder[i].tick = g_timestamp;
-            g_encoder[i].evt_cb(ENC_EVT_LEFT, g_encoder[i].delta_t);
+            evt = ENC_EVT_LEFT;
+            goto evt_trig;
         }
+
+        return;
     }
 
+evt_trig:
+    g_encoder[i].raw = 0;
+    g_encoder[i].tick = g_timestamp;
+    g_encoder[i].evt_cb(evt, delta_t);
 }

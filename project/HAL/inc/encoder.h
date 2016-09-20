@@ -50,7 +50,7 @@ typedef enum
 } e_enc_event;
 
 /** Event callback function */
-typedef void (*t_enc_cb)(e_enc_event event, uint32_t delta_t);
+typedef void (*t_enc_cb)(e_enc_event event, uint16_t delta_t);
 
 typedef struct
 {
@@ -59,9 +59,7 @@ typedef struct
     uint8_t  pin_B;
     uint8_t  pin_raw;
     int8_t   raw;
-    int8_t   value;
     uint32_t tick;
-    uint32_t delta_t;
     t_enc_cb evt_cb;
 
 } t_encoder;
