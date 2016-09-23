@@ -33,14 +33,13 @@
 #include "inc/encoder.h"
 
 #include "inc/system.h"
-#include "inc/time_m.h"
 
 #define ENC_DDR     DDRD
 #define ENC_PORT    PORTD
 #define ENC_PIN     PIND
 
 /** Encoder status */
-static t_encoder g_encoder[ENC_HW_NUM];
+static t_encoder g_encoder;
 
 /** Encoder lookup table */
 static const int8_t enc_lookup [] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
@@ -57,9 +56,9 @@ void encoder_init(void)
 {
 
     /* Logic initialization */
-    g_encoder[ENC_HW_0].pin_A = PIN6;
-    g_encoder[ENC_HW_0].pin_B = PIN7;
-    g_encoder[ENC_HW_0].tick = g_timestamp;
+    g_encoder.pin_A = PIN6;
+    g_encoder.pin_B = PIN7;
+    g_encoder.tick = 0U;
 
     /* Inputs */
     ENC_DDR &= ~(1<<PIN7);
@@ -80,12 +79,24 @@ void encoder_init(void)
 
 }
 
+void encoder_tick(uint8_t timeout_ticks)
+{
+    if (g_encoder.tick >= timeout_ticks)
+    {
+        /* timeout ! */
+    }
+    else
+    {
+        g_encoder.tick++;
+    }
+}
+
 /**
  * Set the encoder event callback
  */
 void encoder_set_callback(e_enc_hw index, t_enc_cb event_cb)
 {
-    g_encoder[index].evt_cb = event_cb;
+    g_encoder.evt_cb = event_cb;
 }
 
 ISR(PCINT0_vect)
@@ -93,54 +104,49 @@ ISR(PCINT0_vect)
     /* Generate the click event */
     if ((PINB >> PIN0) & 0x01U)
     {
-        g_encoder[0].evt_cb(ENC_EVT_CLICK_DOWN, 0U);
+        g_encoder.evt_cb(ENC_EVT_CLICK_DOWN, 0U);
     }
     else
     {
-        g_encoder[0].evt_cb(ENC_EVT_CLICK_UP, 0U);
+        g_encoder.evt_cb(ENC_EVT_CLICK_UP, 0U);
     }
 
 }
 
 /**
  * Encoder subsystem interrupt handler
- * Best case execution time: 10us
- * Worst case execution time: 20us
- * => both well below the 100us system tick timer
  */
 ISR(PCINT2_vect)
 {
 
-    uint8_t i = 0;  /* left for a future multiple encoder implementation */
-    uint32_t delta_t;
     e_enc_event evt;
 
     {
         /* Shift the old values */
-        g_encoder[i].pin_raw <<= 2;
+        g_encoder.pin_raw <<= 2;
         /* Store the new values */
-        g_encoder[i].pin_raw |= ((ENC_PIN >> g_encoder[i].pin_A) & 0x1U) | (((ENC_PIN >> g_encoder[i].pin_B) & 0x1U) << 1U);
+        g_encoder.pin_raw |= ((ENC_PIN >> g_encoder.pin_A) & 0x1U) | (((ENC_PIN >> g_encoder.pin_B) & 0x1U) << 1U);
         /* Increment value by the lookup table value */
-        g_encoder[i].raw += enc_lookup[g_encoder[i].pin_raw & 0x0FU];
+        g_encoder.raw += enc_lookup[g_encoder.pin_raw & 0x0FU];
 
         /* Compute the time difference */
-        delta_t  = g_timestamp;
-        delta_t -= g_encoder[i].tick;
-        delta_t /= 1024;
+//        delta_t  = g_timestamp;
+//        delta_t -= g_encoder.tick;
+//        delta_t /= 1024;
 
-        if (delta_t >= ENC_TIMEOUT)
-        {
+//        if (delta_t >= ENC_TIMEOUT)
+//        {
             /* Timeout (delta time can never exceed 65535) */
-            delta_t = ENC_TIMEOUT;
-            evt = ENC_EVT_TIMEOUT;
-            goto evt_trig;
-        }
-        else if (g_encoder[i].raw > 2)
+//            delta_t = ENC_TIMEOUT;
+//            evt = ENC_EVT_TIMEOUT;
+//            goto evt_trig;
+//        }
+        if (g_encoder.raw > 2)
         {
             evt = ENC_EVT_RIGHT;
             goto evt_trig;
         }
-        else if (g_encoder[i].raw < -2)
+        else if (g_encoder.raw < -2)
         {
             evt = ENC_EVT_LEFT;
             goto evt_trig;
@@ -150,7 +156,7 @@ ISR(PCINT2_vect)
     }
 
 evt_trig:
-    g_encoder[i].raw = 0;
-    g_encoder[i].tick = g_timestamp;
-    g_encoder[i].evt_cb(evt, delta_t);
+    g_encoder.raw = 0;
+    g_encoder.evt_cb(evt, g_encoder.tick);
+    g_encoder.tick = 0;
 }

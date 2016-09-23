@@ -50,7 +50,7 @@ typedef enum
 } e_enc_event;
 
 /** Event callback function */
-typedef void (*t_enc_cb)(e_enc_event event, uint16_t delta_t);
+typedef void (*t_enc_cb)(e_enc_event event, uint8_t delta_t);
 
 typedef struct
 {
@@ -59,13 +59,14 @@ typedef struct
     uint8_t  pin_B;
     uint8_t  pin_raw;
     int8_t   raw;
-    uint32_t tick;
+    uint8_t tick;
     t_enc_cb evt_cb;
 
 } t_encoder;
 
 /* Functions */
 void encoder_init(void);
+void encoder_tick(uint8_t timeout_ticks);
 void encoder_set_callback(e_enc_hw index, t_enc_cb event_cb);
 
 #endif /* ENCODER_H_ */

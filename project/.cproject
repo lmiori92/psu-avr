@@ -37,7 +37,7 @@
 								<option id="de.innot.avreclipse.compiler.option.optimize.packstruct.480171479" name="Pack structs (-fpack-struct)" superClass="de.innot.avreclipse.compiler.option.optimize.packstruct" value="false" valueType="boolean"/>
 								<option id="de.innot.avreclipse.compiler.option.optimize.datasections.1345323534" name="Each data item in its own section (-fdata-sections)" superClass="de.innot.avreclipse.compiler.option.optimize.datasections" value="true" valueType="boolean"/>
 								<option id="de.innot.avreclipse.compiler.option.optimize.functionsections.1712044868" name="Each function in its own section (-ffunction-sections)" superClass="de.innot.avreclipse.compiler.option.optimize.functionsections" value="true" valueType="boolean"/>
-								<option id="de.innot.avreclipse.compiler.option.optimize.other.675529845" superClass="de.innot.avreclipse.compiler.option.optimize.other" value="-funit-at-a-time" valueType="string"/>
+								<option id="de.innot.avreclipse.compiler.option.optimize.other.675529845" name="Other Optimization Flags" superClass="de.innot.avreclipse.compiler.option.optimize.other" value="-funit-at-a-time" valueType="string"/>
 								<inputType id="de.innot.avreclipse.compiler.winavr.input.527105226" name="C Source Files" superClass="de.innot.avreclipse.compiler.winavr.input"/>
 							</tool>
 							<tool id="de.innot.avreclipse.tool.cppcompiler.app.debug.569099733" name="AVR C++ Compiler" superClass="de.innot.avreclipse.tool.cppcompiler.app.debug">

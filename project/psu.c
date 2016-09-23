@@ -19,6 +19,8 @@
 
 */
 
+#include <util/atomic.h>
+
 #include "HAL/inc/adc.h"
 #include "HAL/inc/encoder.h"
 #include "i2c/i2c_master.h"
@@ -46,7 +48,7 @@
 
 /* DEFINES */
 
-#define SMOOTHING_SIZE      (sizeof(smoothing_deltat) / sizeof(smoothing_deltat[0]))
+#define ENCODER_TICK_MAX    20U
 
 static bool encoder_menu_mode = false;
 
@@ -56,19 +58,6 @@ const uint8_t psu_channel_node_id_map[PSU_CHANNEL_NUM][2] =
         /* MASTER - SLAVE (0: local channel or disabled) */
         { 0, 1 },
         { 1, 0 }
-};
-
-static const uint16_t smoothing_deltat[] =
-{
-    65, 54, 47, 42, 38, 34, 31, 29, 26, 24, 22,
-    21, 19, 17, 16, 15, 13, 12, 11, 10, 9,
-    8, 7, 6, 5, 4, 4, 3, 2, 1, 1, 1
-};
-
-static const uint16_t smoothing_result[SMOOTHING_SIZE] =
-{
-    1, 1, 1, 20, 55, 90, 125, 160, 195, 230, 265, 300, 335, 370, 405, 440, 475,
-    510, 545, 580, 615, 650, 685, 720, 755, 790, 825, 860, 895, 930, 965, 1000
 };
 
 /* GLOBALS */
@@ -93,6 +82,16 @@ static t_psu_channel psu_channels[PSU_CHANNEL_NUM] =
 
 static t_application application;
 
+typedef struct
+{
+    e_enc_event event;
+    uint8_t    delta;
+} t_encoder_event_entry;
+
+static uint8_t queue_index = 0U;
+#define ENCODER_EVENT_QUEUE_LEN     (10U)
+static t_encoder_event_entry encoder_event_queue[ENCODER_EVENT_QUEUE_LEN];
+
 /* Remote application level buffers */
 static t_remote_datagram_buffer remote_dgram_rcv_copy;
 
@@ -107,34 +106,10 @@ uint16_t conv_ads1015_isr;
 uint16_t duty;
 uint16_t tmo_cnt = 0;
 
-static t_menu_item menu_test[20];// = {
-//        {"cfg", (void*)&cfg_ads1015, MENU_TYPE_NUMERIC_16 },
-//        {"conv", (void*)&conv_ads1015, MENU_TYPE_NUMERIC_16 },
-//        {"P", (void*)&psu_channels[0].current_limit_pid.P_Factor, MENU_TYPE_NUMERIC_16 },
-//                                    {"I", (void*)&psu_channels[0].current_limit_pid.I_Factor, MENU_TYPE_NUMERIC_16 },
-//                                    {"D", (void*)&psu_channels[0].current_limit_pid.D_Factor, MENU_TYPE_NUMERIC_16 },
-//                                    {"Isr", (void*)&psu_channels[0].current_setpoint.value.raw, MENU_TYPE_NUMERIC_16 },
-//                                    {"Iss", (void*)&psu_channels[0].current_setpoint.value.scaled, MENU_TYPE_NUMERIC_16 },
-//                                    {"Vss", (void*)&psu_channels[0].voltage_setpoint.value.scaled, MENU_TYPE_NUMERIC_16 },
-//                                    {"Vsr", (void*)&psu_channels[0].voltage_setpoint.value.raw, MENU_TYPE_NUMERIC_16 },
-//
-//                                    {"Irr", (void*)&psu_channels[0].current_readout.value.raw, MENU_TYPE_NUMERIC_16 },
-//                                    {"Irs", (void*)&psu_channels[0].current_readout.value.scaled, MENU_TYPE_NUMERIC_16 },
-//                                    {"Vrs", (void*)&psu_channels[0].voltage_readout.value.scaled, MENU_TYPE_NUMERIC_16 },
-//                                    {"Vrr", (void*)&psu_channels[0].voltage_readout.value.raw, MENU_TYPE_NUMERIC_16 },
-//                                    {"duty", (void*)&duty, MENU_TYPE_NUMERIC_16 },
-//
-// //                                   {"d.I", (void*)&psu_channels[0].current_limit_pid.sumError, MENU_TYPE_NUMERIC_32 },
-////                                    {"c.t", (void*)&application.cycle_time, MENU_TYPE_NUMERIC_32 },
-////                                    {"c.t.m", (void*)&application.cycle_time_max, MENU_TYPE_NUMERIC_32 },
-//                                    /*{"PID", (void*)&menu_extra_3, MENU_TYPE_LIST },*/
-//                                    {"BACK", NULL, MENU_TYPE_BACK }
-//                                    };
-
 #include "avr/eeprom.h"     /* EEMEM definitions   */
 #include "avr/pgmspace.h"   /* PROGMEM definitions */
 
-static const PROGMEM t_menu_item menu_test_eeprom[] = {
+const PROGMEM t_menu_item menu_test_eeprom[] = {
         {"cfg", (void*)&cfg_ads1015, MENU_TYPE_NUMERIC_16 },
         {"conv", (void*)&conv_ads1015, MENU_TYPE_NUMERIC_16 },
         {"set", (void*)&tmo_cnt, MENU_TYPE_NUMERIC_16 },
@@ -153,11 +128,20 @@ static const PROGMEM t_menu_item menu_test_eeprom[] = {
                                     {"duty", (void*)&duty, MENU_TYPE_NUMERIC_16 },
 
                                    {"d.I", (void*)&psu_channels[0].current_limit_pid.sumError, MENU_TYPE_NUMERIC_32 },
-//                                    {"c.t", (void*)&application.cycle_time, MENU_TYPE_NUMERIC_32 },
-//                                    {"c.t.m", (void*)&application.cycle_time_max, MENU_TYPE_NUMERIC_32 },
+                                    {"c.t", (void*)&application.cycle_time, MENU_TYPE_NUMERIC_32 },
+                                    {"c.t.m", (void*)&application.cycle_time_max, MENU_TYPE_NUMERIC_32 },
                                     /*{"PID", (void*)&menu_extra_3, MENU_TYPE_LIST },*/
-                                    {"BACK", NULL, MENU_TYPE_BACK }
+                                    {"BACK", (void*)(uint8_t)PSU_MENU_PSU, MENU_TYPE_GOTO }
                                     };
+
+const PROGMEM t_menu_item menu_test_debug[] = {
+        {"d.I", (void*)&psu_channels[0].current_limit_pid.sumError, MENU_TYPE_NUMERIC_32 },
+        {"c.t", (void*)&application.cycle_time, MENU_TYPE_NUMERIC_32 },
+        {"c.t.m", (void*)&application.cycle_time_max, MENU_TYPE_NUMERIC_32 },
+        {"BACK", NULL, MENU_TYPE_GOTO }
+};
+
+static t_menu_item g_megnu_page_entries[20];
 
 static void uart_received(uint8_t byte)
 {
@@ -584,53 +568,22 @@ static void psu_init(void)
 
 }
 
-static void encoder_event_callback(e_enc_event event, uint16_t delta_t)
+/**
+ *
+ *
+ * @param event
+ * @param delta_t
+ */
+static void encoder_event_callback(e_enc_event event, uint8_t delta_t)
 {
-    uint8_t i;
-    uint16_t diff = 0U;
-
-    if (event == ENC_EVT_CLICK_DOWN)
+    if (queue_index < ENCODER_EVENT_QUEUE_LEN)
     {
-        /* Click event */
-        keypad_set_input(BUTTON_SELECT, false);
-    }
-    else if (event == ENC_EVT_CLICK_UP)
-    {
-        /* Release event */
-        keypad_set_input(BUTTON_SELECT, true);
+        encoder_event_queue[queue_index].event = event;
+        encoder_event_queue[queue_index++].delta = delta_t;
     }
     else
     {
-        /* Rotation event */
-        for (i = 0; i < SMOOTHING_SIZE; i++)
-        {
-            if (delta_t >= smoothing_deltat[i])
-            {
-                diff = smoothing_result[i];
-                break;
-            }
-        }
 
-        if (encoder_menu_mode == TRUE)
-        {
-            /* atomic read of the flag: menu mode */
-            if (event == ENC_EVT_LEFT) menu_event(MENU_EVENT_LEFT);
-            else if (event == ENC_EVT_RIGHT) menu_event(MENU_EVENT_RIGHT);
-            menu_set_diff(diff);
-        }
-        else
-        {
-
-            if (event == ENC_EVT_LEFT)
-            {
-                lib_diff(&application.selected_setpoint_ptr->value.raw, diff);
-            }
-            else if (event == ENC_EVT_RIGHT)
-            {
-                lib_sum(&application.selected_setpoint_ptr->value.raw, application.selected_setpoint_ptr->scale.max, diff);
-            }
-
-        }
     }
 }
 
@@ -672,10 +625,13 @@ static void init_io(void)
     /* I2C bus and peripherals */
     i2c_init();
 
+    /* Debug pin */
+    DBG_CONFIG;
+
     system_interrupt_enable();
 
-//    eeprom_read_block(menu_test, menu_test_eeprom, sizeof(menu_test_eeprom));
-    memcpy_P(menu_test, menu_test_eeprom, sizeof(menu_test_eeprom));
+    /*  */
+    memcpy_P(g_megnu_page_entries, menu_test_eeprom, sizeof(menu_test_eeprom));
 
     ads_init();
 }
@@ -716,6 +672,80 @@ static void psu_input_processing(void)
 {
 
     uint8_t i;
+    uint8_t j;
+
+    /* Parse encoder events */
+    uint16_t diff = 0U;
+
+    ATOMIC_BLOCK(ATOMIC_FORCEON)
+    {
+        /* no more event is added in the meantime... */
+        queue_index = 0xFFU;
+    }
+    e_enc_event evt;
+    for (i = 0; i < ENCODER_EVENT_QUEUE_LEN; i++)
+    {
+
+        evt = encoder_event_queue[i].event;
+
+        if (evt == ENC_EVT_NUM)
+        {
+            /* Skip - Placeholder */
+        }
+        else if (evt == ENC_EVT_CLICK_DOWN)
+        {
+            /* Click event */
+            keypad_set_input(BUTTON_SELECT, false);
+        }
+        else if (evt == ENC_EVT_CLICK_UP)
+        {
+            /* Release event */
+            keypad_set_input(BUTTON_SELECT, true);
+        }
+        else if (evt != ENC_EVT_NUM)
+        {
+            /* Rotation event */
+    //        for (j = 0; j < SMOOTHING_SIZE; j++)
+    //        {
+    //            if (encoder_event_queue[i].delta >= smoothing_deltat[j])
+    //            {
+    //                diff = smoothing_result[j];
+    //                break;
+    //            }
+    //        }
+
+            diff = ENCODER_TICK_MAX - encoder_event_queue[i].delta;//smoothing_result[encoder_event_queue[i].delta];
+
+            if (encoder_menu_mode == TRUE)
+            {
+                menu_set_diff(diff);
+                /* atomic read of the flag: menu mode */
+                if (evt == ENC_EVT_LEFT) menu_event(MENU_EVENT_LEFT);
+                else if (evt == ENC_EVT_RIGHT) menu_event(MENU_EVENT_RIGHT);
+            }
+            else
+            {
+
+                if (evt == ENC_EVT_LEFT)
+                {
+                    lib_diff(&application.selected_setpoint_ptr->value.raw, diff);
+                }
+                else if (evt == ENC_EVT_RIGHT)
+                {
+                    lib_sum(&application.selected_setpoint_ptr->value.raw, application.selected_setpoint_ptr->scale.max, diff);
+                }
+
+            }
+        }
+
+        encoder_event_queue[i].event = ENC_EVT_NUM;
+
+    }
+
+    ATOMIC_BLOCK(ATOMIC_FORCEON)
+    {
+        queue_index = 0;
+    }
 
     /* Parse remote datagrams */
     remote_decode_datagram();
@@ -769,7 +799,7 @@ static void psu_output_processing(void)
 
                 /* handled in the high priority routine */
 
-                psu_pwm_processing(&psu_channels[i]);
+//                psu_pwm_processing(&psu_channels[i]);
             }
             else
             {
@@ -894,7 +924,7 @@ static e_psu_gui_menu psu_menu_handler(e_psu_gui_menu page)
         {
         	new_page = PSU_MENU_MAIN;
         }
-        else if (menu_evt_out == MENU_EVENT_OUTPUT_BACK)
+        else if (menu_evt_out == MENU_EVENT_OUTPUT_GOTO)
         {
             new_page = PSU_MENU_MAIN;
         }
@@ -920,7 +950,7 @@ static e_psu_gui_menu psu_menu_handler(e_psu_gui_menu page)
 //            pid_Init(psu_channels[0].current_limit_pid.P_Factor, psu_channels[0].current_limit_pid.I_Factor, psu_channels[0].current_limit_pid.D_Factor, &psu_channels[0].current_limit_pid);
 //            pid_Reset_Integrator(&psu_channels[0].current_limit_pid);
         }
-        else if (menu_evt_out == MENU_EVENT_OUTPUT_BACK)
+        else if (menu_evt_out == MENU_EVENT_OUTPUT_GOTO)
         {
             new_page = PSU_MENU_PSU;
         }
@@ -946,8 +976,8 @@ static e_psu_gui_menu psu_menu_handler(e_psu_gui_menu page)
         case PSU_MENU_MAIN:
             encoder_menu_mode = true;
             /* select the menu */
-            menu_item  = &menu_test[0];
-            menu_count = (sizeof(menu_test) / sizeof(t_menu_item));
+            menu_item  = &g_megnu_page_entries[0];
+            menu_count = (sizeof(g_megnu_page_entries) / sizeof(t_menu_item));
             break;
         default:
             break;
@@ -1032,27 +1062,26 @@ void psu_app_init(void)
     TIMSK0 |= (1 << OCIE0B);
 
 }
-#include <util/atomic.h>
+
 ISR(TIMER0_COMPB_vect)
 {
     static uint8_t isr_timer;
     static bool atomic_lock;
 
+    if (atomic_lock == TRUE)
+    {
+        return;
+    }
+
+    atomic_lock = TRUE;
+
     /* immediately re-enable interrupts */
     sei();
-
-    ATOMIC_BLOCK(ATOMIC_FORCEON)
-    {
-        if (atomic_lock == TRUE)
-        {
-            return;
-        }
-        atomic_lock = TRUE;
-    }
 
     isr_timer++;
     if (isr_timer > 5)
     {
+        encoder_tick(ENCODER_TICK_MAX);
         /* execute logic at 1khz */
         conv_ads1015_isr = ads_read();
 //        uint8_t state = i2c_get_state_info();
@@ -1075,8 +1104,12 @@ ISR(TIMER0_COMPB_vect)
         isr_timer = 0;
     }
 
-    /* atomic by defition (1clk) */
-    atomic_lock = FALSE;
+    ATOMIC_BLOCK(ATOMIC_FORCEON)
+    {
+        atomic_lock = FALSE;
+    }
+
+
 }
 //
 //    uint16_t adc_cur;
@@ -1160,6 +1193,7 @@ void psu_app(void)
 #endif
 
     application.cycle_time = g_timestamp - start;
+    application.cycle_time /= 1000;
     if (application.cycle_time > application.cycle_time_max)
         application.cycle_time_max = application.cycle_time;
 

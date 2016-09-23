@@ -33,6 +33,8 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
+#include "inc/time_m.h"
+
 #define TIMER_0_PRESCALER_8     (1 << CS01)                     /**< Prescaler 8 */
 #define TIMER_0_PRESCALER_64    ((1 << CS01) | (1 << CS00))     /**< Prescaler 64 */
 #define TIMER_0_PRESCALER_256   (1 << CS02)                     /**< Prescaler 256 */
@@ -100,6 +102,6 @@ void timer_delay_ms(uint16_t ms)
  * */
 ISR(TIMER0_COMPA_vect)
 {
-    g_timestamp += 100;   	/* 100us */
+    g_timestamp += 100U;   	/* 100us */
 }
 
