@@ -39,6 +39,7 @@
 #define ENC_PIN     PIND
 
 /** Encoder status */
+/* TODO: it could be expanded to more hardware encoders... */
 static t_encoder g_encoder;
 
 /** Encoder lookup table */
@@ -129,34 +130,23 @@ ISR(PCINT2_vect)
         /* Increment value by the lookup table value */
         g_encoder.raw += enc_lookup[g_encoder.pin_raw & 0x0FU];
 
-        /* Compute the time difference */
-//        delta_t  = g_timestamp;
-//        delta_t -= g_encoder.tick;
-//        delta_t /= 1024;
-
-//        if (delta_t >= ENC_TIMEOUT)
-//        {
-            /* Timeout (delta time can never exceed 65535) */
-//            delta_t = ENC_TIMEOUT;
-//            evt = ENC_EVT_TIMEOUT;
-//            goto evt_trig;
-//        }
-        if (g_encoder.raw > 2)
+        if (g_encoder.raw > 1)
         {
             evt = ENC_EVT_RIGHT;
-            goto evt_trig;
         }
-        else if (g_encoder.raw < -2)
+        else if (g_encoder.raw < -1)
         {
             evt = ENC_EVT_LEFT;
-            goto evt_trig;
+        }
+        else
+        {
+            /* not yet triggered an event... */
+            return;
         }
 
-        return;
-    }
+        g_encoder.raw = 0;
+        g_encoder.evt_cb(evt, g_encoder.tick);
+        g_encoder.tick = 0;
 
-evt_trig:
-    g_encoder.raw = 0;
-    g_encoder.evt_cb(evt, g_encoder.tick);
-    g_encoder.tick = 0;
+    }
 }

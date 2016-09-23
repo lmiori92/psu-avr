@@ -45,7 +45,6 @@ typedef enum
     ENC_EVT_LEFT,
     ENC_EVT_CLICK_DOWN,
     ENC_EVT_CLICK_UP,
-    ENC_EVT_TIMEOUT,
     ENC_EVT_NUM
 } e_enc_event;
 

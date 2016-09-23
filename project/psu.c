@@ -47,10 +47,8 @@
 #include "keypad/keypad.h"
 
 /* DEFINES */
-
-#define ENCODER_TICK_MAX    20U
-
-static bool encoder_menu_mode = false;
+#define ENCODER_TICK_MAX            20U
+#define ENCODER_EVENT_QUEUE_LEN     (10U)
 
 /* CONSTANTS */
 const uint8_t psu_channel_node_id_map[PSU_CHANNEL_NUM][2] =
@@ -61,6 +59,9 @@ const uint8_t psu_channel_node_id_map[PSU_CHANNEL_NUM][2] =
 };
 
 /* GLOBALS */
+
+static bool encoder_menu_mode = false;
+
 static t_psu_channel psu_channels[PSU_CHANNEL_NUM] =
 {
         /* Channel 0 (local) */
@@ -89,7 +90,6 @@ typedef struct
 } t_encoder_event_entry;
 
 static uint8_t queue_index = 0U;
-#define ENCODER_EVENT_QUEUE_LEN     (10U)
 static t_encoder_event_entry encoder_event_queue[ENCODER_EVENT_QUEUE_LEN];
 
 /* Remote application level buffers */
@@ -569,17 +569,20 @@ static void psu_init(void)
 }
 
 /**
+ * This is the encoder callback. Warning: do not overload it
+ * e.g. store the events in a small queue and process the events
+ * in the/a main/low priority thread.
  *
- *
- * @param event
- * @param delta_t
+ * @param event         the encoder event, e_enc_event
+ * @param delta_t       the number of ticks the event needed to be triggered
  */
-static void encoder_event_callback(e_enc_event event, uint8_t delta_t)
+static void encoder_event_callback(e_enc_event event, uint8_t ticks)
 {
     if (queue_index < ENCODER_EVENT_QUEUE_LEN)
     {
         encoder_event_queue[queue_index].event = event;
-        encoder_event_queue[queue_index++].delta = delta_t;
+        encoder_event_queue[queue_index].delta = ticks;
+        queue_index++;
     }
     else
     {
