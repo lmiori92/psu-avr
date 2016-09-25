@@ -24,6 +24,15 @@
 
 #include "lib.h"
 
+/**
+ * Convert a 32bit value to 4 bytes
+ *
+ * @param input     the input 32 bit value
+ * @param lo        low byte
+ * @param milo      mid-low byte
+ * @param hilo      high-low byte
+ * @param hi        high byte
+ */
 void lib_uint32_to_bytes(uint32_t input, uint8_t *lo, uint8_t *milo, uint8_t *hilo, uint8_t *hi)
 {
     *lo   = (uint8_t)input;
@@ -32,12 +41,26 @@ void lib_uint32_to_bytes(uint32_t input, uint8_t *lo, uint8_t *milo, uint8_t *hi
     *hi   = (uint8_t)(input >> 24U);
 }
 
+/**
+ * Convert a 16 bit value to 2 bytes.
+ *
+ * @param input     the 16 bit value
+ * @param lo        the low byte
+ * @param hi        the high byte
+ */
 void lib_uint16_to_bytes(uint16_t input, uint8_t *lo, uint8_t *hi)
 {
     *lo   = (uint8_t)input;
     *hi = (uint8_t)(input >> 8U);
 }
 
+/**
+ * Convert 2 bytes to a 16 bit value
+ *
+ * @param lo    the low byte
+ * @param hi    the high byte
+ * @return      the converted 16 bit value
+ */
 uint16_t lib_bytes_to_uint16(uint8_t lo, uint8_t hi)
 {
     uint16_t output;
@@ -46,6 +69,13 @@ uint16_t lib_bytes_to_uint16(uint8_t lo, uint8_t hi)
     return output;
 }
 
+/**
+ * Perform a safe sum i.e. checking the wrap-around condition.
+ *
+ * @param value     the input and output value
+ * @param limit     the upper limit
+ * @param diff      the value to be summed to the input
+ */
 void lib_sum(uint16_t *value, uint16_t limit, uint16_t diff)
 {
     if (limit < *value)
@@ -59,6 +89,12 @@ void lib_sum(uint16_t *value, uint16_t limit, uint16_t diff)
     }
 }
 
+/**
+ *
+ *
+ * @param value
+ * @param diff
+ */
 void lib_diff(uint16_t *value, uint16_t diff)
 {
     if (*value > diff) *value -= diff;
@@ -162,4 +198,61 @@ void low_pass_filter(uint16_t input, t_low_pass_filter *filter)
 
     /* compute the scaled result */
     filter->output = (uint16_t)(filter->output_last / 1000U);
+}
+
+void fifo_init(t_fifo * f, uint8_t* buf, uint8_t size)
+{
+    f->head = 0;
+    f->tail = 0;
+    f->size = size;
+    f->buf = buf;
+}
+
+bool fifo_pop(t_fifo *f, uint8_t *byte)
+{
+    if( f->tail != f->head )
+    {
+        /* Fifo is not yet empty */
+        *byte = f->buf[f->tail];
+
+        /* increment the tail */
+        f->tail++;
+
+        if(f->tail == f->size)
+        {
+            /* Wraps around */
+            f->tail = 0;
+        }
+        else
+        {
+
+        }
+        return true;
+    }
+    else
+    {
+        /* FIFO is empty, no data to be read */
+        return false;
+    }
+}
+
+bool fifo_push(t_fifo *f, uint8_t byte)
+{
+    if( (f->head + 1 == f->tail) || ((f->head + 1 == f->size) && (f->tail == 0)) )
+    {
+        /* FIFO is full! */
+        return false;
+    }
+    else
+    {
+        f->buf[f->head] = byte;
+        f->head++;
+
+        if( f->head == f->size )
+        {
+            /* Wrap-around */
+            f->head = 0;
+        }
+        return true;
+    }
 }
