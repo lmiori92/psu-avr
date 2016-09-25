@@ -12,8 +12,10 @@ No need to explain. The (in)famous library containing all sort of generic tools.
 # Available services
 - Byte string conversions
 - Limiting and scaling
-- Safe sum and sub
+- Safe (limited) sum and sub
 - Checksum (CRC16-CCITT)
+- Low-pass filter
+- FIFO (push/pop)
 
 # MISRA
 The code should (almost) follow MISRA rules with some exeptions. Please be aware that I did NOT run an analyzer tool yet, hence there is no guarantee the code actually is. The fact is the code has been compiled without warnings nor strange behavior on a 64-bit Linux machine
