@@ -29,6 +29,7 @@
 #ifndef SRC_TIME_H_
 #define SRC_TIME_H_
 
+#include <stdint.h>
 /*#define TIMER_DEBUG*/
 
 extern volatile uint32_t g_timestamp;    /**< Time-keeping in us. Resolution is 100us TICK */

@@ -122,31 +122,28 @@ ISR(PCINT2_vect)
 
     e_enc_event evt;
 
+    /* Shift the old values */
+    g_encoder.pin_raw <<= 2;
+    /* Store the new values */
+    g_encoder.pin_raw |= ((ENC_PIN >> g_encoder.pin_A) & 0x1U) | (((ENC_PIN >> g_encoder.pin_B) & 0x1U) << 1U);
+    /* Increment value by the lookup table value */
+    g_encoder.raw += enc_lookup[g_encoder.pin_raw & 0x0FU];
+
+    if (g_encoder.raw > 1)
     {
-        /* Shift the old values */
-        g_encoder.pin_raw <<= 2;
-        /* Store the new values */
-        g_encoder.pin_raw |= ((ENC_PIN >> g_encoder.pin_A) & 0x1U) | (((ENC_PIN >> g_encoder.pin_B) & 0x1U) << 1U);
-        /* Increment value by the lookup table value */
-        g_encoder.raw += enc_lookup[g_encoder.pin_raw & 0x0FU];
-
-        if (g_encoder.raw > 1)
-        {
-            evt = ENC_EVT_RIGHT;
-        }
-        else if (g_encoder.raw < -1)
-        {
-            evt = ENC_EVT_LEFT;
-        }
-        else
-        {
-            /* not yet triggered an event... */
-            return;
-        }
-
-        g_encoder.raw = 0;
-        g_encoder.evt_cb(evt, g_encoder.tick);
-        g_encoder.tick = 0;
-
+        evt = ENC_EVT_RIGHT;
     }
+    else if (g_encoder.raw < -1)
+    {
+        evt = ENC_EVT_LEFT;
+    }
+    else
+    {
+        /* not yet triggered an event... */
+        return;
+    }
+
+    g_encoder.raw = 0;
+    g_encoder.evt_cb(evt, g_encoder.tick);
+    g_encoder.tick = 0;
 }

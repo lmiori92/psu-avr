@@ -51,6 +51,9 @@
 #define DEASPLAY_HD44780
 /*#define DEASPLAY_HD44780*/
 
-#include "deasplay_hal.h"
+/* Configure the number of lines and the number of character
+ * the specific implementation has to drive. */
+#define DEASPLAY_LINES        2U     /**< Number of lines */
+#define DEASPLAY_CHARS       16U     /**< Number of character per lines */
 
 #endif /* SRC_DEASPLAY_H_ */

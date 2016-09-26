@@ -19,19 +19,27 @@
 
 */
 
-#include <util/atomic.h>
+#ifdef __AVR_ARCH__
+/* TODO if possible, remove the architecture related ifdefs ! */
+#include <util/atomic.h>    /* Atomic operation macros */
+#include "avr/pgmspace.h"   /* PROGMEM definitions */
+#else
+#define PROGMEM
+#define ATOMIC_BLOCK(x)
+#endif
 
 #include "HAL/inc/adc.h"
 #include "HAL/inc/encoder.h"
-#include "i2c/i2c_master.h"
 #include "HAL/driver/adc/ads1015.h"
 #include "HAL/inc/pwm.h"
-#include "psu.h"
 #include "HAL/inc/uart.h"
-#include "remote.h"
-#include "settings.h"
 #include "HAL/inc/system.h"
 #include "HAL/inc/time_m.h"
+#include "i2c/i2c_master.h"
+
+#include "psu.h"
+#include "remote.h"
+#include "settings.h"
 
 /* Standard Library */
 
@@ -49,6 +57,11 @@
 /* DEFINES */
 #define ENCODER_TICK_MAX            20U
 #define ENCODER_EVENT_QUEUE_LEN     (10U)
+
+/* @9600BAUD -> (9600 / 10 / 8) = 120 byte/s ~9ms per byte, so, at every
+ * cycle, assuming and absulte maximum (10-20x times the normal one),
+ * 10 bytes buffer is more than sufficient */
+#define REMOTE_DGRAM_BUF_SIZE       (10U)
 
 /* CONSTANTS */
 const uint8_t psu_channel_node_id_map[PSU_CHANNEL_NUM][2] =
@@ -94,6 +107,9 @@ static t_encoder_event_entry encoder_event_queue[ENCODER_EVENT_QUEUE_LEN];
 
 /* Remote application level buffers */
 static t_remote_datagram_buffer remote_dgram_rcv_copy;
+static uint8_t remote_dgram_stream_buffer_idx = 0;
+static uint8_t remote_dgram_stream_buffer[REMOTE_DGRAM_BUF_SIZE];
+static t_fifo remote_dgram_stream_fifo;
 
 /* MENU (testing) */
 static e_psu_gui_menu menu_page;
@@ -105,9 +121,6 @@ uint16_t conv_ads1015;
 uint16_t conv_ads1015_isr;
 uint16_t duty;
 uint16_t tmo_cnt = 0;
-
-#include "avr/eeprom.h"     /* EEMEM definitions   */
-#include "avr/pgmspace.h"   /* PROGMEM definitions */
 
 const PROGMEM t_menu_item menu_test_eeprom[] = {
         {"cfg", (void*)&cfg_ads1015, MENU_TYPE_NUMERIC_16 },
@@ -148,8 +161,7 @@ static void uart_received(uint8_t byte)
 
     /* NOTE: interrupt callback. Pay attention to execution time... */
 
-    /* Call the state machine with a single byte... */
-    remote_buffer_to_datagram(g_timestamp, byte);
+    fifo_push(&remote_dgram_stream_fifo, byte);
 
 }
 
@@ -631,11 +643,17 @@ static void init_io(void)
     /* Debug pin */
     DBG_CONFIG;
 
+    /* Buffers, FIFOs, ... */
+    fifo_init(&remote_dgram_stream_fifo, remote_dgram_stream_buffer, REMOTE_DGRAM_BUF_SIZE);
+
     system_interrupt_enable();
 
+#ifdef __AVR_ARCH__
     /*  */
     memcpy_P(g_megnu_page_entries, menu_test_eeprom, sizeof(menu_test_eeprom));
-
+#else
+    memcpy(g_megnu_page_entries, menu_test_eeprom, sizeof(menu_test_eeprom));
+#endif
     ads_init();
 }
 
@@ -675,17 +693,17 @@ static void psu_input_processing(void)
 {
 
     uint8_t i;
-    uint8_t j;
 
     /* Parse encoder events */
-    uint16_t diff = 0U;
+    uint16_t diff;
+    e_enc_event evt;
 
     ATOMIC_BLOCK(ATOMIC_FORCEON)
     {
         /* no more event is added in the meantime... */
         queue_index = 0xFFU;
     }
-    e_enc_event evt;
+
     for (i = 0; i < ENCODER_EVENT_QUEUE_LEN; i++)
     {
 
@@ -748,6 +766,23 @@ static void psu_input_processing(void)
     ATOMIC_BLOCK(ATOMIC_FORCEON)
     {
         queue_index = 0;
+    }
+
+    uint8_t byte;
+    bool fifo_result;
+
+    for (i = 0; i < REMOTE_DGRAM_BUF_SIZE; i++)
+    {
+        ATOMIC_BLOCK(ATOMIC_FORCEON)
+        {
+            fifo_result = fifo_pop(&remote_dgram_stream_fifo, &byte);
+        }
+
+        if (fifo_result == true)
+        {
+            /* Call the state machine with a single byte... */
+            remote_buffer_to_datagram(g_timestamp, byte);
+        }
     }
 
     /* Parse remote datagrams */
@@ -1057,15 +1092,16 @@ void psu_app_init(void)
     /* start with the following menu page */
     menu_page = PSU_MENU_STARTUP;
 
-   // DBG_CONFIG;
+#ifdef __AVR_ARCH__
     /* 10 kHz PID routine handler */
     OCR0B = 200;
 
     /* enable output compare match interrupt on timer B */
     TIMSK0 |= (1 << OCIE0B);
-
+#endif
 }
 
+#ifdef __AVR_ARCH
 ISR(TIMER0_COMPB_vect)
 {
     static uint8_t isr_timer;
@@ -1114,27 +1150,7 @@ ISR(TIMER0_COMPB_vect)
 
 
 }
-//
-//    uint16_t adc_cur;
-//    adc_cur = adc_get(ADC_1);
-//
-//    /* ADC readout */
-//    psu_channels[0].current_readout.value.raw = adc_cur;
-//
-//    /* PID controller */
-//    int16_t temp;
-//    temp = pid_Controller(150,
-//                                                                   adc_cur,
-//                                                                   &psu_channels[0].current_limit_pid);
-//
-//    if (temp > 0x3FF) { temp = 0x3FF; pid_Reset_Integrator(&psu_channels[0].current_limit_pid); }
-//    if (temp < 0) { temp = 0; pid_Reset_Integrator(&psu_channels[0].current_limit_pid); }
-//
-//    duty = (uint16_t)temp;
-//    /* PWM */
-//    pwm_set_duty(PWM_CHANNEL_0, duty);
-//
-//}
+#endif
 
 void psu_app(void)
 {

@@ -38,7 +38,7 @@
 #include "pthread.h"
 
 /** Encoder status */
-static t_encoder g_encoder[ENC_HW_NUM];
+static t_encoder g_encoder;
 
 /** Input thread  */
 static pthread_t keyboard_thread;
@@ -56,26 +56,24 @@ void* keyboard_thread_worker(void *params)
         switch(key)
         {
         case KEY_LEFT:
-            g_encoder[0].delta_t = g_timestamp - g_encoder[0].tick;
-            g_encoder[0].value--;
-            g_encoder[0].raw = 0;
-            g_encoder[0].tick = g_timestamp;
-            g_encoder[0].evt_cb(ENC_EVT_LEFT, g_encoder[0].delta_t);
+            g_encoder.tick = g_timestamp - g_encoder.tick;
+            g_encoder.raw = 0;
+            g_encoder.tick = g_timestamp;
+            g_encoder.evt_cb(ENC_EVT_LEFT, g_encoder.tick);
             break;
         case KEY_RIGHT:
-            g_encoder[0].delta_t = g_timestamp - g_encoder[0].tick;
-            g_encoder[0].value--;
-            g_encoder[0].raw = 0;
-            g_encoder[0].tick = g_timestamp;
-            g_encoder[0].evt_cb(ENC_EVT_RIGHT, g_encoder[0].delta_t);
+            g_encoder.tick = g_timestamp - g_encoder.tick;
+            g_encoder.raw = 0;
+            g_encoder.tick = g_timestamp;
+            g_encoder.evt_cb(ENC_EVT_RIGHT, g_encoder.tick);
             break;
         case KEY_UP:
-            g_encoder[0].tick = g_timestamp;
-            g_encoder[0].evt_cb(ENC_EVT_CLICK_DOWN, g_encoder[0].delta_t);
+            g_encoder.tick = g_timestamp;
+            g_encoder.evt_cb(ENC_EVT_CLICK_DOWN, g_encoder.tick);
             break;
         case KEY_DOWN:
-            g_encoder[0].tick = g_timestamp;
-            g_encoder[0].evt_cb(ENC_EVT_CLICK_UP, g_encoder[0].delta_t);
+            g_encoder.tick = g_timestamp;
+            g_encoder.evt_cb(ENC_EVT_CLICK_UP, g_encoder.tick);
             break;
         default:
             break;
@@ -106,5 +104,5 @@ void encoder_init(void)
  */
 void encoder_set_callback(e_enc_hw index, t_enc_cb event_cb)
 {
-    g_encoder[index].evt_cb = event_cb;
+    g_encoder.evt_cb = event_cb;
 }
