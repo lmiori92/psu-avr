@@ -43,6 +43,17 @@ It is so generic that it has no dependencies and can be used with a variety of i
 - Simple and generic API: timer flag in and boolean in -> event-type out.
 - Cross-Platform due to standard C and careful coding
 
+<<<<<<< HEAD
+=======
+# Available services
+- Byte string conversions
+- Limiting and scaling
+- Safe (limited) sum and sub
+- Checksum (CRC16-CCITT)
+- Low-pass filter
+- FIFO (push/pop)
+
+>>>>>>> 107d2e2d6a8c6b8f4a9696db3663f708a84f4443
 # MISRA
 The code should (almost) follow MISRA rules with some exeptions. Please be aware that I did NOT run an analyzer tool yet, hence there is no guarantee the code actually is. The fact is the code has been compiled without warnings nor strange behavior on a 64-bit Linux machine
 
