@@ -1,7 +1,6 @@
 
-#include "../../deasplay.h"
-
-#ifdef DEASPLAY_HD44780
+#include "display.h"
+#include "display_hal.h"
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -162,7 +161,12 @@ static void hd44780_write_data(uint8_t data)
     hd44780_transmit(data, MODE_WRITE_DATA);
 }
 
-void hd44780_init(void)
+static void hd44780_update_parameters()
+{
+    hd44780_write_command(HD44780_DISPLAYCONTROL | lcd_displayparams);
+}
+
+static void hd44780_init(void)
 {
 
     /* Wait for more than 15ms when Vcc raises to 4.5V */
@@ -195,12 +199,7 @@ void hd44780_init(void)
 
 }
 
-void hd44780_display_hal_power(e_deasplay_HAL_power state)
-{
-    /* STUB */
-}
-
-void hd44780_display_hal_init(void)
+static void hd44780_display_hal_init(void)
 {
     /* Initialize the shift register backend
      * to be used with the virtual port register */
@@ -215,7 +214,7 @@ void hd44780_display_hal_init(void)
     _delay_ms(2);
 }
 
-void hd44780_display_hal_set_cursor(uint8_t line, uint8_t chr)
+static void hd44780_display_hal_set_cursor(uint8_t line, uint8_t chr)
 {
     static uint8_t offsets[] = { 0x00, 0x40 };
 
@@ -227,12 +226,12 @@ void hd44780_display_hal_set_cursor(uint8_t line, uint8_t chr)
     hd44780_write_command(HD44780_SETDDRAMADDR | (chr + offsets[line]));
 }
 
-void hd44780_display_hal_write_char(uint8_t chr)
+static void hd44780_display_hal_write_char(uint8_t chr)
 {
     hd44780_write_data(chr);
 }
 
-void hd44780_display_hal_cursor_visibility(bool visible)
+static void hd44780_display_hal_cursor_visibility(bool visible)
 {
     if (visible == true)
     {
@@ -243,9 +242,23 @@ void hd44780_display_hal_cursor_visibility(bool visible)
         lcd_displayparams &= ~HD44780_CURSORON;
     }
 
-    hd44780_write_command(HD44780_DISPLAYCONTROL | lcd_displayparams);
-
+    hd44780_update_parameters();
 }
 
-#endif  /* DEASPLAY_HD44780 */
+/**
+ *
+ * @brief
+ *
+ * Register the display to the display subsystem HAL
+ *
+ * @param   funcs   the function pointer structure
+ */
+void hd44780_set_hal(t_display_hal_functions *funcs)
+{
 
+    funcs->display_hal_init = hd44780_display_hal_init;
+    funcs->display_hal_set_cursor = hd44780_display_hal_set_cursor;
+    funcs->display_hal_write_char = hd44780_display_hal_write_char;
+    funcs->display_hal_cursor_visibility = hd44780_display_hal_cursor_visibility;
+
+}
