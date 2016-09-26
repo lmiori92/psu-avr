@@ -26,10 +26,11 @@
  * @brief MENU: handling of simple menu logic for character displays
  */
 
-
-#include "display.h"    /* display primitives */
 #include "menu.h"       /* menu definitions */
-#include "lib.h"        /* utilities */
+
+/* External libraries */
+#include "../deasplay/deasplay.h"    /* display primitives */
+#include "../lorenzlib/lib.h"        /* utilities */
 
 static char* BOOL_LABELS[2] = { "NO", "YES" };
 static uint8_t BOOL_VALUES[2] = { (uint8_t)false, (uint8_t)true };
@@ -262,15 +263,15 @@ e_menu_output_event menu_event(e_menu_input_event event)
                 /* no event; NOOP */
                 break;
             case MENU_EVENT_CLICK:
-                if (item->extra != NULL)
+                if (item->type == MENU_TYPE_GOTO)
+                {
+                    output_event = MENU_EVENT_OUTPUT_GOTO;
+                }
+                else if (item->extra != NULL)
                 {
                     /* complex entry (editable) -> toggle selected / unselected */
                     g_state->state = (g_state->state == MENU_SELECTED) ? MENU_NOT_SELECTED : MENU_SELECTED;
                     output_event = (g_state->state == MENU_SELECTED) ? MENU_EVENT_OUTPUT_SELECT : MENU_EVENT_OUTPUT_DESELECT;
-                }
-                else if (item->type == MENU_TYPE_BACK)
-                {
-                    output_event = MENU_EVENT_OUTPUT_BACK;
                 }
                 else
                 {
