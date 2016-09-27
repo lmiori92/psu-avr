@@ -29,7 +29,7 @@
 #ifndef SRC_DEASPLAY_DRIVER_NCURSES_NCURSES_HAL_H_
 #define SRC_DEASPLAY_DRIVER_NCURSES_NCURSES_HAL_H_
 
-#include "../deasplay_HAL.h"
+#include "../deasplay_hal.h"
 
 #define NCURSES_LINES       DEASPLAY_LINES    /**< Number of lines */
 #define NCURSES_CHARS       DEASPLAY_CHARS    /**< Number of character per lines */

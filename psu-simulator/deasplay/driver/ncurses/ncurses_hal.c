@@ -26,21 +26,23 @@
  * @brief Display HAL to interface the APIs to the ncurses backend
  */
 
-#ifdef DEASPLAY_NCURSES
 /* compile only if the backend is enabled */
 
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "ncurses.h"
-#include "ncurses_hal.h"
+#include <ncurses.h>
 
-static void ncurses_display_refresh(void)
+#include "../../deasplay.h"
+
+#ifdef DEASPLAY_NCURSES
+
+void ncurses_display_refresh(void)
 {
     refresh();
 }
 
-static void ncurses_display_hal_init(void)
+void ncurses_display_hal_init(void)
 {
     initscr(); /* Start curses mode */
 
@@ -50,21 +52,27 @@ static void ncurses_display_hal_init(void)
 
 }
 
-static void ncurses_display_hal_set_cursor(uint8_t line, uint8_t chr)
+void ncurses_display_hal_power(e_deasplay_HAL_power state)
+{
+    /* STUB */
+}
+    
+
+void ncurses_display_hal_set_cursor(uint8_t line, uint8_t chr)
 {
     move(line + 1, chr+1);
 
     ncurses_display_refresh();
 }
 
-static void ncurses_display_hal_write_char(uint8_t chr)
+void ncurses_display_hal_write_char(uint8_t chr)
 {
     addch(chr);
 
     ncurses_display_refresh();
 }
 
-static void ncurses_display_hal_cursor_visibility(bool visible)
+void ncurses_display_hal_cursor_visibility(bool visible)
 {
     curs_set((visible == TRUE) ? 1U : 0U);
 

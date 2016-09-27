@@ -32,6 +32,8 @@
 #include "lc75710.h"
 #include "lc75710_hal.h"
 
+#ifdef DEASPLAY_LC75710
+
 static uint8_t pos = 0;
 
 void lc75710_display_hal_init(void)
@@ -69,3 +71,5 @@ void lc75710_display_hal_cursor_visibility(bool visible)
 {
     /* Not available on the LC75710 controller */
 }
+
+#endif
