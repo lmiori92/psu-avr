@@ -22,7 +22,7 @@
 /* Module */
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <i2c/i2c_master.h>
+#include <inc/i2c_master.h>
 #include <avr/delay.h>
 
 /* Standard Library */

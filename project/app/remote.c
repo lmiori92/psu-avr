@@ -28,8 +28,8 @@
 
 #include "error.h"
 #include "remote.h"
-#include "HAL/inc/uart.h"    /* UART primitives */
-#include "HAL/inc/system.h"  /* Critical section handlers */
+#include "inc/uart.h"    /* UART primitives */
+#include "inc/system.h"  /* Critical section handlers */
 
 #include <stdbool.h>
 #include <stdint.h>

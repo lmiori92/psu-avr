@@ -8,7 +8,7 @@
 #include "settings.h"
 #include "string.h"
 
-#include "HAL/inc/eeprom.h"
+#include "inc/eeprom.h"
 
 /* External Library */
 #include "lorenzlib/lib.h"     /* CRC16 CCITT */

@@ -26,12 +26,19 @@
 #include "stddef.h"
 #include "stdbool.h"
 
+/* TODO Currenty the code is not well platform independent regarding the status codes ...*/
+
 /** Defines the target (wanted) i2c clock [Hz] */
 #define TWI_CLOCK_TARGET    400000U
 
 /** Calculate the TWBR (TWI Bit rate) register value */
 /* (CPU / SCL - 16) / ( 2 * prescaler ) */
+#ifdef F_CPU
 #define TWI_TWBR            (((F_CPU / TWI_CLOCK_TARGET) - 16U) / ( 2U * 1U ))
+#else
+/* dummy define */
+#define TWI_TWBR            (0U)
+#endif
 
 /** us units. WARNING: no more than 255! */
 #define I2C_MASTER_TIMEOUT  100U

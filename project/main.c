@@ -26,7 +26,7 @@
  * @brief The main entry point of the program
  */
 
-#include "psu.h"
+#include "app/psu.h"
 
 int main(void)
 {

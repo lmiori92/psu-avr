@@ -7,7 +7,7 @@
 
 #include "ads1015.h"
 
-#include "../../../i2c/i2c_master.h"
+#include "inc/i2c_master.h"
 
 static uint8_t buf[5U];
 

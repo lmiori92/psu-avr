@@ -29,8 +29,8 @@
 #ifndef PSU_H_
 #define PSU_H_
 
-#include "HAL/inc/adc.h"
-#include "HAL/inc/pwm.h"
+#include "inc/adc.h"
+#include "inc/pwm.h"
 #include "lorenzlib/lib.h"
 #include "pid.h"
 

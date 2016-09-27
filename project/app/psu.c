@@ -28,14 +28,14 @@
 #define ATOMIC_BLOCK(x)
 #endif
 
-#include "HAL/inc/adc.h"
-#include "HAL/inc/encoder.h"
-#include "HAL/driver/adc/ads1015.h"
-#include "HAL/inc/pwm.h"
-#include "HAL/inc/uart.h"
-#include "HAL/inc/system.h"
-#include "HAL/inc/time_m.h"
-#include "i2c/i2c_master.h"
+#include "inc/adc.h"
+#include "inc/encoder.h"
+#include "driver/adc/ads1015.h"
+#include "inc/pwm.h"
+#include "inc/uart.h"
+#include "inc/system.h"
+#include "inc/time_m.h"
+#include "inc/i2c_master.h"
 
 #include "psu.h"
 #include "remote.h"

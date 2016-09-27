@@ -5,7 +5,7 @@
  *      Author: lorenzo
  */
 
-#include "../../../i2c/i2c_master.h"
+#include "inc/i2c_master.h"
 
 #include "mcp4725.h"
 
