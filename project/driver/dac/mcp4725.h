@@ -11,14 +11,14 @@
 #include "stdint.h"
 
 /** Device address pin 0 */
-#define MCP_DAC_A0              (0U)
+#define MCP_DAC_A0              (1U)
 /** Device address pin 1 */
-#define MCP_DAC_A1              (0U)
+#define MCP_DAC_A1              (1U)
 /** Device address pin 2 */
 #define MCP_DAC_A2              (0U)
 
 /** Device i2c address */
-#define MCP_DAC_ADDRESS         ((0xC0U) | (MCP_DAC_A2 << 1U) | (MCP_DAC_A1 << 1U)| (MCP_DAC_A0 << 1U))
+#define MCP_DAC_ADDRESS         ((0xC0U) | (MCP_DAC_A2 << 3U) | (MCP_DAC_A1 << 2U)| (MCP_DAC_A0 << 1U))
 
 /** Device C0/1/2 bits location */
 #define MCP_DAC_Cx_BYTE         (0U)

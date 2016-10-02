@@ -31,6 +31,7 @@
 #include "inc/adc.h"
 #include "inc/encoder.h"
 #include "driver/adc/ads1015.h"
+#include "driver/dac/mcp4725.h"
 #include "inc/pwm.h"
 #include "inc/uart.h"
 #include "inc/system.h"
@@ -121,8 +122,10 @@ uint16_t conv_ads1015;
 uint16_t conv_ads1015_isr;
 uint16_t duty;
 uint16_t tmo_cnt = 0;
+uint16_t dac_val = 0;
 
 const PROGMEM t_menu_item menu_test_eeprom[] = {
+        {"dac", (void*)&dac_val, MENU_TYPE_NUMERIC_16 },
         {"cfg", (void*)&cfg_ads1015, MENU_TYPE_NUMERIC_16 },
         {"conv", (void*)&conv_ads1015, MENU_TYPE_NUMERIC_16 },
         {"set", (void*)&tmo_cnt, MENU_TYPE_NUMERIC_16 },
@@ -655,6 +658,7 @@ static void init_io(void)
     memcpy(g_megnu_page_entries, menu_test_eeprom, sizeof(menu_test_eeprom));
 #endif
     ads_init();
+    mcp_dac_init();
 }
 
 static void psu_adc_processing(t_psu_channel *channel)
@@ -1101,7 +1105,7 @@ void psu_app_init(void)
 #endif
 }
 
-#ifdef __AVR_ARCH
+#ifdef __AVR_ARCH__
 ISR(TIMER0_COMPB_vect)
 {
     static uint8_t isr_timer;
@@ -1142,6 +1146,8 @@ ISR(TIMER0_COMPB_vect)
 
         isr_timer = 0;
     }
+
+    mcp_dac_write(dac_val);
 
     ATOMIC_BLOCK(ATOMIC_FORCEON)
     {

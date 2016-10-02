@@ -30,6 +30,7 @@
 #include <avr/io.h>
 #include <avr/wdt.h>
 
+#include "deasplay/deasplay.h"
 #include "inc/uart.h"
 #include "inc/system.h"
 
@@ -87,6 +88,10 @@ uint16_t StackCount(void)
 ISR(BADISR_vect)
 {
     uart_putstring("no ISR!\r\n");
+    display_clean();
+    display_set_cursor(0,0);
+    display_write_string("no ISR!");
+    display_periodic();
     for(;;);
 }
 
