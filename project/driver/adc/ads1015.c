@@ -90,3 +90,9 @@ void ads_init(void)
     ads_write_config(config);
 
 }
+
+uint16_t adc_get_resolution(void)
+{
+    /* 11 effective bits */
+    return 2047U;
+}

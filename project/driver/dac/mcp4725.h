@@ -46,5 +46,6 @@
 void mcp_dac_init(void);
 void mcp_dac_write(uint16_t value);
 void mcp_dac_write_eeprom(uint16_t value);
+uint16_t mcp_dac_get_resolution(void);
 
 #endif /* HAL_DRIVER_ADC_MCP4725_H_ */

@@ -27,6 +27,7 @@
  */
 
 #include "app/psu.h"
+#include "app/remote.h"
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -45,7 +46,7 @@ void* main_thread_worker(void *params)
 {
 
     struct timespec tim, tim2;
-    tim.tv_nsec = 500000UL;        /* cycle time */
+    tim.tv_nsec = 50000UL;        /* cycle time */
 
     while (1)
     {
@@ -57,6 +58,16 @@ void* main_thread_worker(void *params)
     }
 
 }
+int counter = 0;
+void uart_putchar(char c, FILE *stream)
+{
+    if (counter == 9) c |= 12;
+    remote_buffer_to_datagram(c);
+    counter++;
+}
+#include <stdbool.h>
+t_remote_datagram_buffer buf;
+bool avl = false;
 
 int main(int argc, char *argv[])
 {
@@ -70,12 +81,26 @@ int main(int argc, char *argv[])
         g_serial_port_path = argv[2];
 
         /* one-time initialization */
-        psu_app_init();
+       // psu_app_init();
+
+        /* testing of the remote protocol */
+        t_remote_datagram_buffer *rem_buf;
+        remote_send_alloc(&rem_buf);
+        memcpy(rem_buf->data, "Lorenzo", 7);
+        rem_buf->datagram.len = 7;
+        remote_send_push();
+        datagram_buffer_to_remote();
+
+        /* we should now have the decoded datagram again here */
+
+        avl = remote_receive_get(&buf);
+
+        printf("terminated");
 
         /* start the thread */
-        pthread_create(&main_thread, NULL, main_thread_worker, NULL);
+//        pthread_create(&main_thread, NULL, main_thread_worker, NULL);
 
-        pthread_join(main_thread, NULL);
+//        pthread_join(main_thread, NULL);
 
     }
     else

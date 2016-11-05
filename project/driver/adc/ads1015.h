@@ -107,5 +107,6 @@ void ads_select_register(uint8_t reg);
 uint16_t ads_read(void);
 void ads_write_config(uint16_t config);
 uint16_t ads_get_config(void);
+uint16_t adc_get_resolution(void);
 
 #endif /* HAL_DRIVER_ADC_ADS1015_H_ */

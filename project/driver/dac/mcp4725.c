@@ -40,3 +40,9 @@ void mcp_dac_write_eeprom(uint16_t value)
     /* Update the DAC register using the EEPROM+DAC Write Mode */
     i2c_transfer_set_data(buffer, 4U);
 }
+
+uint16_t mcp_dac_get_resolution(void)
+{
+    /* 12 effective bits */
+    return 4095U;
+}

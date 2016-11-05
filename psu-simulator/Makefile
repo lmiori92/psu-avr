@@ -9,6 +9,7 @@ LORENZLIBDIR = $(ODIR)/lorenzlib
 MEGNUDIR = $(ODIR)/megnu
 I2CDIR = $(ODIR)/i2c
 DRIVERDIR = $(SDIR)/driver/adc
+DACDIR = $(SDIR)/driver/dac
 APPDIR = $(SDIR)/app
 
 LIBS=-lm -lncurses -lpthread
@@ -31,6 +32,7 @@ DEPS_ += $(MEGNUDIR)
 DEPS_ += $(KEYPADDIR)
 DEPS_ += $(I2CDIR)
 DEPS_ += $(DRIVERDIR)
+DEPS_ += $(DACDIR)
 DEPS_ += $(SDIR)
 
 DEPSA = $(foreach dep,$(DEPS_),$(realpath $(dep)))
@@ -43,6 +45,7 @@ OBJ_ += $(wildcard $(MEGNUDIR)/*.c)
 OBJ_ += $(wildcard $(KEYPADDIR)/*.c)
 OBJ_ += $(wildcard $(I2CDIR)/*.c)
 OBJ_ += $(wildcard $(DRIVERDIR)/*.c)
+OBJ_ += $(wildcard $(DACDIR)/*.c)
 OBJ_ += $(wildcard $(APPDIR)/*.c)
 OBJ_ += $(wildcard $(SDIR)/*.c)
 

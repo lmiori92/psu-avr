@@ -23,6 +23,7 @@
 */
 
 #include "lib.h"
+#include <stddef.h>
 
 /**
  * Convert a 32bit value to 4 bytes
@@ -213,7 +214,10 @@ bool fifo_pop(t_fifo *f, uint8_t *byte)
     if( f->tail != f->head )
     {
         /* Fifo is not yet empty */
-        *byte = f->buf[f->tail];
+        if (f->buf != NULL)
+        {
+            *byte = f->buf[f->tail];
+        }
 
         /* increment the tail */
         f->tail++;
@@ -245,7 +249,11 @@ bool fifo_push(t_fifo *f, uint8_t byte)
     }
     else
     {
-        f->buf[f->head] = byte;
+        if (f->buf != NULL)
+        {
+            f->buf[f->head] = byte;
+        }
+
         f->head++;
 
         if( f->head == f->size )

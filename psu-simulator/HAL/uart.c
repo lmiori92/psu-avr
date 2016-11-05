@@ -141,7 +141,7 @@ void uart_callback(t_uart_cb cb)
     uart_cb = cb;
 }
 
-void uart_putchar(char c, FILE *stream)
+void uart_putcharu(char c, FILE *stream)
 {
     write(fd, &c, 1);
     /* blocking operation, no buffering! */
