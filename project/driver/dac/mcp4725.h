@@ -10,15 +10,19 @@
 
 #include "stdint.h"
 
-/** Device address pin 0 */
-#define MCP_DAC_A0              (1U)
+/** Device address pin 0, when tied to GND */
+#define MCP_DAC_A0_GND          (0U)
+/** Device address pin 0, when tied to VCC */
+#define MCP_DAC_A0_VCC          (1U)
 /** Device address pin 1 */
 #define MCP_DAC_A1              (1U)
 /** Device address pin 2 */
 #define MCP_DAC_A2              (0U)
 
-/** Device i2c address */
-#define MCP_DAC_ADDRESS         ((0xC0U) | (MCP_DAC_A2 << 3U) | (MCP_DAC_A1 << 2U)| (MCP_DAC_A0 << 1U))
+/** Device i2c address 0 */
+#define MCP_DAC_ADDRESS_0         ((0xC0U) | (MCP_DAC_A2 << 3U) | (MCP_DAC_A1 << 2U)| (MCP_DAC_A0_GND << 1U))
+/** Device i2c address 1 */
+#define MCP_DAC_ADDRESS_1         ((0xC0U) | (MCP_DAC_A2 << 3U) | (MCP_DAC_A1 << 2U)| (MCP_DAC_A0_VCC << 1U))
 
 /** Device C0/1/2 bits location */
 #define MCP_DAC_Cx_BYTE         (0U)
@@ -43,9 +47,9 @@
 /** Device general call WAKE-UP */
 #define MCP_DAC_GEN_CALL_WKUP    (0x09U)
 
-void mcp_dac_init(void);
-void mcp_dac_write(uint16_t value);
-void mcp_dac_write_eeprom(uint16_t value);
+void mcp_dac_init(uint8_t address);
+void mcp_dac_write(uint8_t address, uint16_t value);
+void mcp_dac_write_eeprom(uint8_t address, uint16_t value);
 uint16_t mcp_dac_get_resolution(void);
 
 #endif /* HAL_DRIVER_ADC_MCP4725_H_ */

@@ -8,49 +8,39 @@
 #include "psu.h"
 #include "remote.h"
 
-#include "../inc/time_m.h"
-
 #include <stddef.h>
 
 /* CONSTANTS */
-const uint8_t psu_channel_node_id_map[PSU_CHANNEL_NUM][2] =
-{
-        /* MASTER - SLAVE (0: local channel or disabled) */
-        { 0, 1 },
-        { 1, 0 }
-};
-
 static t_remote_datagram_buffer remote_dgram_rcv_copy;
 
-void psu_init_channel(t_psu_channel *channel, e_psu_channel psu_ch, bool master_or_slave)
+void psu_init_channel(t_psu_channel *channel, e_psu_channel psu_ch, uint8_t identifier)
 {
 
     /* Preoperational mode initially */
     channel->state             = PSU_STATE_INIT;
 
     /* Set nodeID */
-    channel->node_id = psu_channel_node_id_map[psu_ch][master_or_slave ? 0U : 1U];
+    channel->node_id = identifier;
 
-    psu_set_measurement_scale(&channel->voltage_readout, 0, adc_get_resolution(), 0, 28500);
-    psu_set_measurement_scale(&channel->current_readout, 0, adc_get_resolution(), 0, 2200);
+    psu_set_measurement_scale(&channel->voltage_readout, 0, 1777, 0, 20000);
+    psu_set_measurement_scale(&channel->current_readout, 0, adc_get_resolution(), 0, 4300);
 
-    psu_set_setpoint_scale(&channel->voltage_setpoint, 0, 28500, 0, mcp_dac_get_resolution());
-    psu_set_setpoint_scale(&channel->current_setpoint, 0, 2200, 0, mcp_dac_get_resolution());
+    psu_set_setpoint_scale(&channel->voltage_setpoint, 0, 25000, 487, mcp_dac_get_resolution());
+    psu_set_setpoint_scale(&channel->current_setpoint, 0, 2048, 0, mcp_dac_get_resolution());
 
     /* Filter properties */
-    channel->voltage_readout.filter.alpha = 100;
-    channel->current_readout.filter.alpha = 100;
+    channel->voltage_readout.filter.alpha = 10;
+    channel->current_readout.filter.alpha = 10;
 
-    pid_Init(10,25,10, &channel->current_limit_pid);
 }
 
-static t_psu_channel* psu_get_channel_from_node_id(t_psu_channel* channels, uint8_t node_id)
+static t_psu_channel* psu_get_channel_from_node_id(t_psu_channel* channels, uint8_t count, uint8_t node_id)
 {
     uint16_t i = 0;
 
     t_psu_channel* ret = NULL;
 
-    for (i = 0; i < PSU_CHANNEL_NUM; i++)
+    for (i = 0; i < count; i++)
     {
         if (channels[i].node_id == node_id)
         {
@@ -64,7 +54,7 @@ static t_psu_channel* psu_get_channel_from_node_id(t_psu_channel* channels, uint
 /**
  * Parse the received datagram(s)
  */
-void remote_decode_datagram(t_psu_channel *channels)
+void remote_decode_datagram(t_psu_channel *channels, uint8_t count)
 {
     bool new;
     bool crc_ok;
@@ -78,6 +68,7 @@ void remote_decode_datagram(t_psu_channel *channels)
     do
     {
         new = remote_receive_get(&remote_dgram_rcv_copy);
+
         if (new == true)
         {
             crc_ok = remote_calc_crc_buffer_and_compare(remote_dgram_rcv_copy.data,
@@ -94,7 +85,7 @@ void remote_decode_datagram(t_psu_channel *channels)
 
                 /* Get the associated channel, if possible
                  * NOTE: channel id is divided by 2 (it is * 2 on slave!) */
-                temp_ch = psu_get_channel_from_node_id(channels, node_id);
+                temp_ch = psu_get_channel_from_node_id(channels, count, node_id);
 
                 /* data identifier: pointer to 2 bytes after the start */
                 packet_data  = remote_dgram_rcv_copy.data;

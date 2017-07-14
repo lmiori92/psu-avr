@@ -56,7 +56,7 @@ typedef enum _e_psu_adc_channel
     PSU_ADC_14,
     PSU_ADC_15,
 
-    PSU_ADC_NUM,
+    PSU_ADC_MAX,
 
     PSU_ADC_NONE
 } e_psu_ADC_channel;
@@ -80,7 +80,7 @@ typedef enum _e_psu_dac_channel
     PSU_DAC_14,
     PSU_DAC_15,
 
-    PSU_DAC_NUM,
+    PSU_DAC_MAX,
 
     PSU_DAC_NONE
 } e_psu_DAC_channel;
@@ -89,8 +89,24 @@ typedef enum _e_psu_channels
 {
     PSU_CHANNEL_0,
     PSU_CHANNEL_1,
+    PSU_CHANNEL_2,
+    PSU_CHANNEL_3,
+    PSU_CHANNEL_4,
+    PSU_CHANNEL_5,
+    PSU_CHANNEL_6,
+    PSU_CHANNEL_7,
+    PSU_CHANNEL_8,
+    PSU_CHANNEL_9,
+    PSU_CHANNEL_10,
+    PSU_CHANNEL_11,
+    PSU_CHANNEL_12,
+    PSU_CHANNEL_13,
+    PSU_CHANNEL_14,
+    PSU_CHANNEL_15,
 
-    PSU_CHANNEL_NUM
+    PSU_CHANNEL_MAX,
+
+    PSU_CHANNEL_NONE
 } e_psu_channel;
 
 typedef enum _e_psu_state
@@ -127,13 +143,6 @@ typedef struct _t_channel
     t_psu_setpoint      current_setpoint;    /**< Current setpoint for the channel */
     t_measurement      current_readout;     /**< Current measurement for the channel */
 
-
-//    e_psu_ADC_channel  voltage_adc_channel;     /**< Voltage measurement ADC channel */
-//    e_psu_DAC_channel  voltage_dac_channel;     /**< Voltage output PWM channel */
-//    e_psu_ADC_channel  current_adc_channel;     /**< Current measurement ADC channel */
-//    e_psu_DAC_channel  current_dac_channel;     /**< Current output PWM channel */
-    pidData_t       current_limit_pid;      /**< Current limit mode PID controller state */
-
 } t_psu_channel;
 
 typedef enum
@@ -145,8 +154,9 @@ typedef enum
     DATAYPE_DEBUG        /**< Datagram Data carries debug data */
 } e_datatype;
 
-void psu_init_channel(t_psu_channel *channel, e_psu_channel psu_ch, bool master_or_slave);
-void remote_decode_datagram(t_psu_channel *channels);
+void psu_init_channel(t_psu_channel *channel, e_psu_channel psu_ch, uint8_t identifier);
+
+void remote_decode_datagram(t_psu_channel *channels, uint8_t count);
 void remote_encode_datagram(e_datatype type, t_psu_channel *channel);
 void psu_check_channel(t_psu_channel *psu_channel, bool tick);
 

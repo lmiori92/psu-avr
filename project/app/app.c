@@ -73,7 +73,8 @@
 
 static bool encoder_menu_mode = false;
 
-static t_psu_channel psu_channels[PSU_CHANNEL_NUM];
+#define PSU_NUM_CHANNELS        2U
+static t_psu_channel psu_channels[PSU_NUM_CHANNELS];
 
 static t_application application;
 
@@ -105,33 +106,43 @@ uint16_t dac_val = 0;
 #define MAX(x, y) ((((x) > (y)) ? (x) : (y)))
 
 const PROGMEM t_menu_item menu_test_eeprom[] = {
-        {"dac", (void*)&dac_val, MENU_TYPE_NUMERIC_16 },
-        {"cfg", (void*)&cfg_ads1015, MENU_TYPE_NUMERIC_16 },
-        {"conv", (void*)&conv_ads1015, MENU_TYPE_NUMERIC_16 },
-        {"set", (void*)&tmo_cnt, MENU_TYPE_NUMERIC_16 },
-        {"P", (void*)&psu_channels[0].current_limit_pid.P_Factor, MENU_TYPE_NUMERIC_16 },
-                                    {"I", (void*)&psu_channels[0].current_limit_pid.I_Factor, MENU_TYPE_NUMERIC_16 },
-                                    {"D", (void*)&psu_channels[0].current_limit_pid.D_Factor, MENU_TYPE_NUMERIC_16 },
-                                    {"Isr", (void*)&psu_channels[0].current_setpoint.value.raw, MENU_TYPE_NUMERIC_16 },
-                                    {"Iss", (void*)&psu_channels[0].current_setpoint.value.scaled, MENU_TYPE_NUMERIC_16 },
-                                    {"Vss", (void*)&psu_channels[0].voltage_setpoint.value.scaled, MENU_TYPE_NUMERIC_16 },
-                                    {"Vsr", (void*)&psu_channels[0].voltage_setpoint.value.raw, MENU_TYPE_NUMERIC_16 },
+//        {"dac", (void*)&dac_val, MENU_TYPE_NUMERIC_16 },
+//        {"cfg", (void*)&cfg_ads1015, MENU_TYPE_NUMERIC_16 },
+//        {"conv", (void*)&conv_ads1015, MENU_TYPE_NUMERIC_16 },
+//        {"set", (void*)&tmo_cnt, MENU_TYPE_NUMERIC_16 },
+        //        {"P", (void*)&psu_channels[0].current_limit_pid.P_Factor, MENU_TYPE_NUMERIC_16 },
+        //        {"I", (void*)&psu_channels[0].current_limit_pid.I_Factor, MENU_TYPE_NUMERIC_16 },
+        //        {"D", (void*)&psu_channels[0].current_limit_pid.D_Factor, MENU_TYPE_NUMERIC_16 },
+        //        {"d.I", (void*)&psu_channels[0].current_limit_pid.sumError, MENU_TYPE_NUMERIC_32 },
+        {"Isr", (void*)&psu_channels[0].current_setpoint.value.raw, MENU_TYPE_NUMERIC_16 },
+        {"Iss", (void*)&psu_channels[0].current_setpoint.value.scaled, MENU_TYPE_NUMERIC_16 },
+        {"Vss", (void*)&psu_channels[0].voltage_setpoint.value.scaled, MENU_TYPE_NUMERIC_16 },
+        {"Vsr", (void*)&psu_channels[0].voltage_setpoint.value.raw, MENU_TYPE_NUMERIC_16 },
 
-                                    {"Irr", (void*)&psu_channels[0].current_readout.value.raw, MENU_TYPE_NUMERIC_16 },
-                                    {"Irs", (void*)&psu_channels[0].current_readout.value.scaled, MENU_TYPE_NUMERIC_16 },
-                                    {"Vrs", (void*)&psu_channels[0].voltage_readout.value.scaled, MENU_TYPE_NUMERIC_16 },
-                                    {"Vrr", (void*)&psu_channels[0].voltage_readout.value.raw, MENU_TYPE_NUMERIC_16 },
+        {"Irr", (void*)&psu_channels[0].current_readout.value.raw, MENU_TYPE_NUMERIC_16 },
+        {"Irs", (void*)&psu_channels[0].current_readout.value.scaled, MENU_TYPE_NUMERIC_16 },
+        {"Vrs", (void*)&psu_channels[0].voltage_readout.value.scaled, MENU_TYPE_NUMERIC_16 },
+        {"Vrr", (void*)&psu_channels[0].voltage_readout.value.raw, MENU_TYPE_NUMERIC_16 },
+
+        {"Vdac+", (void*)&psu_channels[0].voltage_readout.scale.max, MENU_TYPE_NUMERIC_16 },
+        {"Vdac-", (void*)&psu_channels[0].voltage_readout.scale.min, MENU_TYPE_NUMERIC_16 },
+        {"Vsca+", (void*)&psu_channels[0].voltage_readout.scale.max_scaled, MENU_TYPE_NUMERIC_16 },
+        {"Vsca-", (void*)&psu_channels[0].voltage_readout.scale.min_scaled, MENU_TYPE_NUMERIC_16 },
+
+        {"Idac+", (void*)&psu_channels[0].current_readout.scale.max, MENU_TYPE_NUMERIC_16 },
+        {"Idac-", (void*)&psu_channels[0].current_readout.scale.min, MENU_TYPE_NUMERIC_16 },
+        {"Isca+", (void*)&psu_channels[0].current_readout.scale.max_scaled, MENU_TYPE_NUMERIC_16 },
+        {"Isca-", (void*)&psu_channels[0].current_readout.scale.min_scaled, MENU_TYPE_NUMERIC_16 },
+
                                     {"duty", (void*)&duty, MENU_TYPE_NUMERIC_16 },
 
-                                   {"d.I", (void*)&psu_channels[0].current_limit_pid.sumError, MENU_TYPE_NUMERIC_32 },
                                     {"c.t", (void*)&application.cycle_time, MENU_TYPE_NUMERIC_32 },
                                     {"c.t.m", (void*)&application.cycle_time_max, MENU_TYPE_NUMERIC_32 },
-                                    /*{"PID", (void*)&menu_extra_3, MENU_TYPE_LIST },*/
                                     {"BACK", (void*)(uint8_t)PSU_MENU_PSU, MENU_TYPE_GOTO }
                                     };
 
 const PROGMEM t_menu_item menu_test_debug[] = {
-        {"d.I", (void*)&psu_channels[0].current_limit_pid.sumError, MENU_TYPE_NUMERIC_32 },
+        //        {"d.I", (void*)&psu_channels[0].current_limit_pid.sumError, MENU_TYPE_NUMERIC_32 },
         {"c.t", (void*)&application.cycle_time, MENU_TYPE_NUMERIC_32 },
         {"c.t.m", (void*)&application.cycle_time_max, MENU_TYPE_NUMERIC_32 },
         {"BACK", NULL, MENU_TYPE_GOTO }
@@ -150,7 +161,7 @@ const PROGMEM t_menu_item menu_psu_ch_debug[] = {
 
 static t_menu_item g_megnu_page_entries[MAX_MENU_ENTRIES / sizeof(t_menu_item)];
 
-static void uart_received(uint8_t byte)
+void uart_received(uint8_t byte)
 {
 
     /* NOTE: interrupt callback. Pay attention to execution time... */
@@ -219,7 +230,7 @@ static void psu_init(void)
 
     uint8_t i;
 
-    for (i = 0; i < (uint8_t)PSU_CHANNEL_NUM; i++)
+    for (i = 0; i < PSU_NUM_CHANNELS; i++)
     {
         psu_init_channel(&psu_channels[i], (e_psu_channel)i, application.master_or_slave);
     }
@@ -241,13 +252,14 @@ static void encoder_event_callback(e_enc_event event, uint8_t ticks)
 {
     if (queue_index < ENCODER_EVENT_QUEUE_LEN)
     {
+        /* buffer available */
         encoder_event_queue[queue_index].event = event;
         encoder_event_queue[queue_index].delta = ticks;
         queue_index++;
     }
     else
     {
-
+        /* no more buffer */
     }
 }
 
@@ -262,6 +274,7 @@ static void init_io(void)
     /* UART */
     uart_init();
     uart_callback(uart_received);
+    /* do not directly stdout, the remote protocol will break ! */
     /* stdout = &uart_output; */
     /* stdin  = &uart_input; */
 
@@ -304,7 +317,8 @@ static void init_io(void)
     memcpy(g_megnu_page_entries, menu_test_eeprom, sizeof(menu_test_eeprom));
 #endif
     ads_init();
-    mcp_dac_init();
+    mcp_dac_init(MCP_DAC_ADDRESS_0);
+    mcp_dac_init(MCP_DAC_ADDRESS_1);
 }
 
 static void psu_postprocessing(t_psu_channel *channel)
@@ -319,6 +333,12 @@ static void psu_preprocessing(t_psu_channel *channel)
 {
     /* Voltage Scaling */
     lib_scale(&channel->voltage_setpoint.value, &channel->voltage_setpoint.scale);
+    /* Feedback works this way:
+     * - injecting more current: voltage setpoint goes towards zero
+     * - injecting less current: voltage setpoint goes towards Vmax
+     * Therefore, this is translated here. The minimum setpoint (0V) is
+     * obtained with a maximum DAC output and vice-versa */
+    channel->voltage_setpoint.value.scaled = channel->voltage_setpoint.scale.max_scaled - channel->voltage_setpoint.value.scaled + channel->voltage_setpoint.scale.min_scaled;
     /* Current Scaling */
     lib_scale(&channel->current_setpoint.value, &channel->current_setpoint.scale);
 }
@@ -413,32 +433,44 @@ static void psu_input_processing(void)
     }
 
     /* Parse remote datagrams */
-    remote_decode_datagram(psu_channels);
+    remote_decode_datagram(psu_channels, PSU_NUM_CHANNELS);
 
     /* Refresh Power Supply Data */
 
-#warning "Test onlz!!"
-
-//    cfg_ads1015 = ads_get_config();
+    //cfg_ads1015 = ads_get_config();
 
     uint16_t tmp;
 
-    ATOMIC_BLOCK(ATOMIC_FORCEON)
+//    ATOMIC_BLOCK(ATOMIC_FORCEON)
+//    {
+//        tmp = conv_ads1015_isr;
+//    }
+    static uint8_t cur_volt_switch = 0;
+    switch(cur_volt_switch)
     {
-        tmp = conv_ads1015_isr;
+    case 0:
+        ads_select_channel(ADS1015_CHANNEL_0, ADS_ADC_PGA_4_096);
+        _delay_ms(1);
+        cur_volt_switch = 1;
+        tmp = ads_read();
+        /* Voltage */
+        psu_set_measurement(&psu_channels[PSU_CHANNEL_0].voltage_readout, tmp);
+        low_pass_filter(tmp, &psu_channels[PSU_CHANNEL_0].voltage_readout.filter);
+        psu_set_measurement(&psu_channels[PSU_CHANNEL_0].voltage_readout,
+                             psu_channels[PSU_CHANNEL_0].voltage_readout.filter.output);
+        break;
+    case 1:
+        ads_select_channel(ADS1015_CHANNEL_1, ADS_ADC_PGA_0_256);
+        _delay_ms(1);
+        cur_volt_switch = 0;
+        tmp = ads_read();
+        /* Current */
+        psu_set_measurement(&psu_channels[PSU_CHANNEL_0].current_readout, tmp);
+        low_pass_filter(tmp, &psu_channels[PSU_CHANNEL_0].current_readout.filter);
+        psu_set_measurement(&psu_channels[PSU_CHANNEL_0].current_readout,
+                             psu_channels[PSU_CHANNEL_0].current_readout.filter.output);
+        break;
     }
-
-    /* Voltage */
-    psu_set_measurement(&psu_channels[PSU_CHANNEL_0].voltage_readout, tmp);
-    low_pass_filter(tmp, &psu_channels[PSU_CHANNEL_0].voltage_readout.filter);
-    psu_set_measurement(&psu_channels[PSU_CHANNEL_0].voltage_readout,
-                         psu_channels[PSU_CHANNEL_0].voltage_readout.filter.output);
-
-    /* Current */
-    psu_set_measurement(&psu_channels[PSU_CHANNEL_0].current_readout, tmp);
-    low_pass_filter(tmp, &psu_channels[PSU_CHANNEL_0].current_readout.filter);
-    psu_set_measurement(&psu_channels[PSU_CHANNEL_0].current_readout,
-                         psu_channels[PSU_CHANNEL_0].current_readout.filter.output);
 
     /* Post-processing of Power Supply Channels */
 
@@ -718,74 +750,74 @@ void psu_app_init(void)
 
     /* start with the following menu page */
     menu_page = PSU_MENU_STARTUP;
-
-#ifdef __AVR_ARCH__
-    /* 10 kHz PID routine handler */
-    OCR0B = 200;
-
-    /* enable output compare match interrupt on timer B */
-    TIMSK0 |= (1 << OCIE0B);
-#endif
+//
+//#ifdef __AVR_ARCH__
+//    /* 10 kHz PID routine handler */
+//    OCR0B = 200;
+//
+//    /* enable output compare match interrupt on timer B */
+//    TIMSK0 |= (1 << OCIE0B);
+//#endif
 }
 
-#ifdef __AVR_ARCH__
-ISR(TIMER0_COMPB_vect)
-{
-    static uint8_t isr_timer;
-    static bool atomic_lock;
-
-    if (atomic_lock == TRUE)
-    {
-        return;
-    }
-
-    atomic_lock = TRUE;
-
-    /* immediately re-enable interrupts */
-    sei();
-
-    isr_timer++;
-    if (isr_timer > 5)
-    {
-        encoder_tick(ENCODER_TICK_MAX);
-        /* execute logic at 1khz */
-        conv_ads1015_isr = ads_read();
-//        uint8_t state = i2c_get_state_info();
-//        if (state == TWI_TIMEOUT)
-//        {
-//            tmo_cnt++;
-//        }
-        conv_ads1015_isr >>= 4; // bit lost in single ended conversion!
-
-
-
-        int16_t temp;
-        int16_t sp = tmo_cnt;
-        int16_t fb = conv_ads1015_isr;
-        uint16_t p;
-        temp = pid_Controller(sp, fb, &psu_channels[0].current_limit_pid);
-        if (temp > 4095) temp = 4095;
-        if (temp < 0) temp = 0;
-        p = (uint16_t)temp;
-        mcp_dac_write(p);
-
-        isr_timer = 0;
-    }
-    else
-    {
-        /* Measure the voltage */
-
-        psu_channels[0].voltage_readout.value.raw = conv_ads1015;
-    }
-
-    ATOMIC_BLOCK(ATOMIC_FORCEON)
-    {
-        atomic_lock = FALSE;
-    }
-
-
-}
-#endif
+//#ifdef __AVR_ARCH__
+//ISR(TIMER0_COMPB_vect)
+//{
+//    static uint8_t isr_timer;
+//    static bool atomic_lock;
+//
+//    if (atomic_lock == TRUE)
+//    {
+//        return;
+//    }
+//
+//    atomic_lock = TRUE;
+//
+//    /* immediately re-enable interrupts */
+//    sei();
+//
+//    isr_timer++;
+//    if (isr_timer > 5)
+//    {
+//        encoder_tick(ENCODER_TICK_MAX);
+//        /* execute logic at 1khz */
+//        conv_ads1015_isr = ads_read();
+////        uint8_t state = i2c_get_state_info();
+////        if (state == TWI_TIMEOUT)
+////        {
+////            tmo_cnt++;
+////        }
+//        conv_ads1015_isr >>= 4; // bit lost in single ended conversion!
+//
+//
+//
+//        int16_t temp;
+//        int16_t sp = tmo_cnt;
+//        int16_t fb = conv_ads1015_isr;
+//        uint16_t p;
+//        temp = pid_Controller(sp, fb, &psu_channels[0].current_limit_pid);
+//        if (temp > 4095) temp = 4095;
+//        if (temp < 0) temp = 0;
+//        p = (uint16_t)temp;
+//        mcp_dac_write(p);
+//
+//        isr_timer = 0;
+//    }
+//    else
+//    {
+//        /* Measure the voltage */
+//
+//        psu_channels[0].voltage_readout.value.raw = conv_ads1015;
+//    }
+//
+//    ATOMIC_BLOCK(ATOMIC_FORCEON)
+//    {
+//        atomic_lock = FALSE;
+//    }
+//
+//
+//}
+//#endif
 
 void psu_app(void)
 {
@@ -808,7 +840,7 @@ void psu_app(void)
     }
 
     /* Remote protocol */
-    remote_periodic(application.flag_50ms.flag);
+    //remote_periodic(application.flag_50ms.flag);
 
     /* Periodic functions */
     psu_input_processing();
@@ -825,8 +857,11 @@ void psu_app(void)
     /* Display handler */
     display_periodic();
 
+    mcp_dac_write(MCP_DAC_ADDRESS_0, psu_channels[0].voltage_setpoint.value.scaled);
+    mcp_dac_write(MCP_DAC_ADDRESS_1, psu_channels[0].current_setpoint.value.scaled);
+
     /* Send out the oldest datagram from the FIFO */
-    datagram_buffer_to_remote();
+    //datagram_buffer_to_remote();
 
 #ifdef TIMER_DEBUG
     /* Debug the timer */

@@ -11,18 +11,18 @@
 
 static uint8_t buffer[4U];
 
-void mcp_dac_init(void)
+void mcp_dac_init(uint8_t address)
 {
-    mcp_dac_write_eeprom(0U);
+    /* mcp_dac_write_eeprom(0U); */
     /* write a zero value */
-    mcp_dac_write(0U);
+    mcp_dac_write(address, 0U);
 }
 
-void mcp_dac_write(uint16_t value)
+void mcp_dac_write(uint8_t address, uint16_t value)
 {
     /* Prepare the buffer */
     /* we always perform writes (R/W bit is 0) */
-    buffer[0U] = MCP_DAC_ADDRESS;
+    buffer[0U] = address;
     buffer[1U] = (uint8_t)(((uint16_t)(value >> 8U)) & 0x0FU);
     buffer[2U] = (uint8_t)((uint16_t)(value));
     /* Update the DAC register using the Fast Mode */
@@ -31,7 +31,7 @@ void mcp_dac_write(uint16_t value)
     i2c_transfer_successful();
 }
 
-void mcp_dac_write_eeprom(uint16_t value)
+void mcp_dac_write_eeprom(uint8_t address, uint16_t value)
 {
     /* Prepare the buffer */
     buffer[1U] = (1 << MCP_DAC_C1_BIT) | (1 << MCP_DAC_C0_BIT);

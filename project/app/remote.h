@@ -81,7 +81,8 @@ void remote_periodic(bool tick);
 
 /** Buffer management **/
 bool remote_receive_get(t_remote_datagram_buffer *datagram);
-void remote_send_alloc(t_remote_datagram_buffer** datagram_buf);
+void remote_receive_pop(void);
+void remote_send_alloc(t_remote_datagram_buffer** datagram);
 void remote_send_push(void);
 
 /** utilities **/

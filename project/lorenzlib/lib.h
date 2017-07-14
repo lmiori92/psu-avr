@@ -25,6 +25,7 @@ typedef struct _t_value_scale
     t_value_type max;
     t_value_type min_scaled;
     t_value_type max_scaled;
+    bool invert;
 } t_value_scale;
 
 typedef struct

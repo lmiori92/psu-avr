@@ -102,8 +102,17 @@
 /**  */
 #define ADS_ADC_MUX_AIN3_GND        (7U)
 
+enum
+{
+    ADS1015_CHANNEL_0,
+    ADS1015_CHANNEL_1,
+    ADS1015_CHANNEL_2,
+    ADS1015_CHANNEL_3,
+};
+
 void ads_init(void);
 void ads_select_register(uint8_t reg);
+void ads_select_channel(uint8_t channel, uint8_t pga);
 uint16_t ads_read(void);
 void ads_write_config(uint16_t config);
 uint16_t ads_get_config(void);
