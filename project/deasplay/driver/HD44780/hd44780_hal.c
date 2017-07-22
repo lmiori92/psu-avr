@@ -6,9 +6,9 @@
 #include <avr/io.h>
 #include <util/delay.h>
 
-#define SHIFT_LATCH_PIN     PIN3   /**< STCP 74HC595 PIN */
-#define SHIFT_CLOCK_PIN     PIN4   /**< SHCP 74HC595 PIN */
-#define SHIFT_DATA_PIN      PIN5   /**< DS   74HC595 PIN */
+#define SHIFT_LATCH_PIN     PINB3   /**< STCP 74HC595 PIN */
+#define SHIFT_CLOCK_PIN     PINB4   /**< SHCP 74HC595 PIN */
+#define SHIFT_DATA_PIN      PINB2   /**< DS   74HC595 PIN */
 
 #define SHIFT_PORT          PORTB  /**< Shift PINs PORT */
 #define SHIFT_DDR           DDRB   /**< Shift PINs DDR */

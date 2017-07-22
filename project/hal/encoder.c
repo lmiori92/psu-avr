@@ -34,18 +34,17 @@
 
 #include "inc/system.h"
 
-#define ENC_DDR     DDRD
-#define ENC_PORT    PORTD
-#define ENC_PIN     PIND
+#define ENC_DDR     DDRB
+#define ENC_PORT    PORTB
+#define ENC_PIN     PINB
 
 /** Encoder status */
 /* TODO: it could be expanded to more hardware encoders... */
 static t_encoder g_encoder;
 
 /** Encoder lookup table */
-static const int8_t enc_lookup [] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
-/* coarse encoder lookup table
- * static const int8_t enc_lookup[16] = { 0, 0, -1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, -1, 0, 0 }; */
+//static const int8_t enc_lookup [] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
+static const int8_t enc_lookup[16] = { 0, 0, -1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, -1, 0, 0 };
 #define ENC_LOOKUP_NUM      (sizeof(enc_lookup) / sizeof(enc_lookup[0]))
 #define ENC_TIMEOUT         500UL            /* ~ms (to improve performance, us are divided by 1024) */
 #define ENC_STEP_COUNT      2                   /* steps to generate an event */
@@ -57,22 +56,22 @@ void encoder_init(void)
 {
 
     /* Logic initialization */
-    g_encoder.pin_A = PIN6;
-    g_encoder.pin_B = PIN7;
+    g_encoder.pin_A = PIN0;
+    g_encoder.pin_B = PIN1;
     g_encoder.tick = 0U;
 
     /* Inputs */
-    ENC_DDR &= ~(1<<PIN7);
-    ENC_DDR &= ~(1<<PIN6);
-    DDRB &= ~(1<<PIN0);
+    ENC_DDR &= ~(1<<g_encoder.pin_A);
+    ENC_DDR &= ~(1<<g_encoder.pin_B);
+    DDRD &= ~(1<<PIN7);
 
     /* Turn on pull-ups (encoder switches to GND) */
-    ENC_PORT |= (1<<PIN7) | (1 << PIN6);
-    PORTB |= 1<<PIN0;
+    ENC_PORT |= (1<<g_encoder.pin_A) | (1 << g_encoder.pin_B);
+    PORTD |= 1<<PIN7;
 
     /* Enable interrupts on the encoder pins */
-    PCMSK0 |= (1 << PCINT0 );                  /* click */
-    PCMSK2 |= (1 << PCINT23 ) | (1 << PCINT22); /* wheel */
+    PCMSK2 |= (1 << PCINT7 );                  /* click */
+    PCMSK0 |= (1 << PCINT16 ) | (1 << PCINT17); /* wheel */
 
     /* Enable Pin Change subsystem (interrupts) */
     PCICR |= (1<< PCIE0);
@@ -100,10 +99,10 @@ void encoder_set_callback(e_enc_hw index, t_enc_cb event_cb)
     g_encoder.evt_cb = event_cb;
 }
 
-ISR(PCINT0_vect)
+ISR(PCINT2_vect)
 {
     /* Generate the click event */
-    if ((PINB >> PIN0) & 0x01U)
+    if ((PIND >> PIN7) & 0x01U)
     {
         g_encoder.evt_cb(ENC_EVT_CLICK_DOWN, 0U);
     }
@@ -117,7 +116,7 @@ ISR(PCINT0_vect)
 /**
  * Encoder subsystem interrupt handler
  */
-ISR(PCINT2_vect)
+ISR(PCINT0_vect)
 {
 
     e_enc_event evt;

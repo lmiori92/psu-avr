@@ -282,9 +282,9 @@ static void init_io(void)
     adc_init();
 
     /* PWM */
-    pwm_init();
-    pwm_enable_channel(PWM_CHANNEL_0);
-    pwm_enable_channel(PWM_CHANNEL_1);
+//    pwm_init();
+//    pwm_enable_channel(PWM_CHANNEL_0);
+//    pwm_enable_channel(PWM_CHANNEL_1);
 
     /* System timer */
     timer_init();
