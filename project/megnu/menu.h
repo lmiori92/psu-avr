@@ -29,10 +29,19 @@
 #ifndef MENU_H_
 #define MENU_H_
 
+/* Let this library to be also compilable in C++ projects */
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #include <stdint.h>
 
 /* Add extra parenthesis, you never know what the mean programmer is able to do :-) */
 #define MEGNU_MAX_PAGE_ENTRIES_INTERNAL     (MEGNU_MAX_PAGE_ENTRIES)
+
+/* Defnine the size of the internal buffer */
+#define MEGNU_MAX_MENU_ITEMS    (20U)
 
 /** Enumeration of supported events the menu system can handle (input) */
 typedef enum
@@ -60,12 +69,17 @@ typedef enum _e_menu_output_event
 /** Enumeration of supported menu item types */
 typedef enum
 {
-    MENU_TYPE_NONE,            /**< Label only */
-    MENU_TYPE_LIST,            /**< Menu item extra type is a list */
-    MENU_TYPE_NUMERIC_8,       /**<  */
-    MENU_TYPE_NUMERIC_16,      /**<  */
-    MENU_TYPE_NUMERIC_32,      /**<  */
-    MENU_TYPE_GOTO,            /**< Menu item to get to another page */
+    MENU_TYPE_NONE,              /**< Label only */
+    MENU_TYPE_LIST,              /**< Menu item extra type is a list */
+    MENU_TYPE_LIST_EDIT,         /**< Menu item extra type is a list */
+    MENU_TYPE_NUMERIC_8,         /**<  */
+    MENU_TYPE_NUMERIC_16,        /**<  */
+    MENU_TYPE_NUMERIC_32,        /**<  */
+    MENU_TYPE_NUMERIC_8_EDIT,    /**<  */
+    MENU_TYPE_NUMERIC_16_EDIT,   /**<  */
+    MENU_TYPE_NUMERIC_32_EDIT,   /**<  */
+    MENU_TYPE_CALLBACK,          /**< Menu item that is bound to the return value of a given function */
+    MENU_TYPE_GOTO,              /**< Menu item to get to another page */
 } e_item_type;
 
 /** Enumeration of the possible states a menu item can be */
@@ -78,10 +92,10 @@ typedef enum
 /** Structure for the extra LIST item information (labels and values) */
 typedef struct
 {
-    uint8_t  count;           /**< Total number of labels */
-    uint8_t  ptr;             /**< The index of the currently active label */
-    char**   labels;         /**< Labels to associate the ptr value to */
+    uint8_t  count;          /**< Total number of labels */
+    uint8_t  *ptr;           /**< The index of the currently active label */
     uint8_t* values;         /**< List of values to associate the ptr to */
+    char*   labels[];         /**< Labels to associate the ptr value to */
 } t_menu_extra_list;
 
 /** Structure for describing the menu item */
@@ -95,29 +109,68 @@ typedef struct
 /** Structure for the current menu state */
 typedef struct
 {
-    uint8_t index;              /**< Selected menu item */
-    uint8_t prev;               /**< Selected menu item */
-    e_menu_item_state   state;  /**< Item state */
-    uint16_t diff;              /**< Determines scrolling "speed" / "velocity" (e.g. from an encoder or repeated keypress) */
+    uint8_t             index;       /**< Selected menu item */
+    uint8_t             start;        /**< Selected menu item */
+    e_menu_item_state   state;       /**< Item state */
+    uint16_t            diff;        /**< Determines scrolling "speed" / "velocity" (e.g. from an encoder or repeated keypress) */
+    t_menu_item         items[MEGNU_MAX_MENU_ITEMS];  /**< Menu items (i.e. elements) */
+    uint8_t             item_count;    /**< Actual number of menu items */
+    uint8_t             page;          /**< Selected page number */
+    uint8_t             lines;         /**< The total lines of numbers to display */
 } t_menu_state;
 
-/** Event callback function */
-typedef void (*t_menu_cb)(e_menu_output_event event, uint8_t index, uint8_t page);
+/** Event callback function
+ *
+ * @param event
+ * @param index
+ * @param page
+ * @param info
+ */
+extern void menu_event_callback(e_menu_output_event event, uint8_t index, uint8_t page, uint8_t info);
 
 /** EXTERNAL LINKAGE GLOBALS **/
 
-/** Definition of the page entries, which are freely settable by the application */
-//extern t_menu_item g_megnu_page_entries[];
-//extern uint8_t     g_megnu_page_entries_max;
+/* None so far */
 
 /**  EXTERNAL LINKAGE FUNCTIONS **/
 
-void menu_init(t_menu_state *state);
-void menu_init_bool_list(t_menu_extra_list *extra);
-void menu_event_callback(t_menu_cb menu_cb);
-void menu_set(t_menu_state *state, t_menu_item *item, uint8_t count, uint8_t page);
+/**
+ * Initialize the internal structures to a known state
+ * @param   lines   the number of physical lines of the destination display
+ *                  (or a subset of them)
+ */
+void menu_init(uint8_t lines);
+
+/**
+ * Removes all the item from the internal state i.e.
+ * sets the item count to 0 and indexes to 0 as well.
+ */
+void menu_clear(void);
+
+/**
+ * Add a new item to the current menu internal state
+ * @param item
+ */
+void menu_item_add(t_menu_item *item);
+
+/**
+ * Set a new page number
+ * @param page  the new page number
+ */
+void menu_set_page(uint8_t page);
+
+/**
+ * Return the current page value
+ * @return  the page value
+ */
+uint8_t menu_get_page(void);
+
 void menu_set_diff(uint16_t diff);
 void menu_display(void);
 e_menu_output_event menu_event(e_menu_input_event event);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MENU_H_ */

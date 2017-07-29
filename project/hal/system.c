@@ -98,6 +98,10 @@ ISR(BADISR_vect)
 void system_fatal(char *str)
 {
     uart_putstring(str);
+    display_clean();
+    display_set_cursor(0,0);
+    display_write_string(str);
+    display_periodic();
     for(;;);
 }
 

@@ -19,12 +19,12 @@ void persistent_init(uint16_t *size)
 
 uint8_t persistent_read(uint16_t address)
 {
-    return eeprom_read_byte((uint8_t*)&address);
+    return eeprom_read_byte((uint8_t*)address);
 }
 
 void    persistent_write(uint16_t address, uint8_t byte)
 {
-    eeprom_write_byte((uint8_t*)&address, byte);
+    eeprom_write_byte((uint8_t*)address, byte);
 }
 
 void    persistent_deinit(void)

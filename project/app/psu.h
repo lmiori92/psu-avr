@@ -128,6 +128,8 @@ typedef struct _t_psu_setpoint
 {
     t_value_scale scale;
     t_value       value;        /**< Voltage [mV] / Current [mA] / ... */
+#warning "TODO: implement a generic output inversion "
+//    bool          invert;       /**< If true, the output value will be inverted i.e. min scaled indicates a maximum output on the final stage */
 } t_psu_setpoint;
 
 typedef struct _t_channel
@@ -142,6 +144,9 @@ typedef struct _t_channel
 
     t_psu_setpoint      current_setpoint;    /**< Current setpoint for the channel */
     t_measurement      current_readout;     /**< Current measurement for the channel */
+
+    bool           output_bypass;       /**< Outputs are not updated if true */
+    uint16_t       value_bypass;
 
 } t_psu_channel;
 

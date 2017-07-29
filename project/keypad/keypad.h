@@ -27,8 +27,8 @@
 #include <stdbool.h>
 
 #define KEY_50MS_FLAG         50000U   /**< Flag set every 50ms [us] */
-#define KEY_DEBOUNCE_CLICK    2U       /**< Debounce time [50ms cycles] */
-#define KEY_DEBOUNCE_HOLD     8U      /**< Debounce time [50ms cycles] */
+#define KEY_DEBOUNCE_CLICK    1U       /**< Debounce time [50ms cycles] */
+#define KEY_DEBOUNCE_HOLD     10U      /**< Debounce time [50ms cycles] */
 
 /**< Enumeration of buttons */
 typedef enum e_buttons_

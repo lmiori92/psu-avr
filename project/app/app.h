@@ -43,11 +43,15 @@ typedef enum _e_psu_setpoint
     PSU_SETPOINT_CURRENT,
 } e_psu_setpoint;
 
+/** Enumeration of menu pages */
 typedef enum _e_psu_gui_menu
 {
     PSU_MENU_PSU,
     PSU_MENU_MAIN,
-    PSU_MENU_STARTUP
+    PSU_MENU_VOLTAGE_CALIBRATION,
+    PSU_MENU_CURRENT_CALIBRATION,
+    PSU_MENU_VOLTAGE_DAC_CALIBRATION,
+    PSU_MENU_CURRENT_DAC_CALIBRATION,
 } e_psu_gui_menu;
 
 typedef struct

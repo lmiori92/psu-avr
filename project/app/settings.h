@@ -20,17 +20,24 @@ typedef enum
 typedef enum
 {
     SETTING_VERSION,
+    /* Voltage ADC Calibrations */
+    SETTING_CAL_VOLTAGE_LOWER,
+    SETTING_CAL_VOLTAGE_UPPER,
+    /* Current ADC Calibrations */
+    SETTING_CAL_CURRENT_LOWER,
+    SETTING_CAL_CURRENT_UPPER,
+    /* Voltage DAC Calibrations */
+    SETTING_CAL_DAC_VOLTAGE_LOWER,
+    SETTING_CAL_DAC_VOLTAGE_UPPER,
+    /* Current DAC Calibrations */
+    SETTING_CAL_DAC_CURRENT_LOWER,
+    SETTING_CAL_DAC_CURRENT_UPPER,
+    /* Miscellaneous */
+    SETTING_WORKING_MINUTES,
 
-//    SETTING_CAL_CURRENT_ZERO,
-//    SETTING_CAL_VOLTAGE_ZERO,
-//    SETTING_CAL_CURRENT_TOP,
-//    SETTING_CAL_VOLTAGE_TOP,
+    /* Add new params here when required */
 
-//    SETTING_CAL_CURRENT_ZERO_SCALE,
-//    SETTING_CAL_VOLTAGE_ZERO_SCALE,
-//    SETTING_CAL_CURRENT_TOP_SCALE,
-//    SETTING_CAL_VOLTAGE_TOP_SCALE,
-
+    /* !! Do Not Modify !!*/
     SETTING_NUM_SETTINGS
 } e_settings_available;
 
@@ -48,7 +55,7 @@ typedef enum
 typedef struct
 {
     e_setting_type type;
-    bool           state;
+    uint8_t        state;
 
     union
     {

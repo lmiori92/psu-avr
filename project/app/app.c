@@ -92,52 +92,26 @@ static uint8_t remote_dgram_stream_buffer[REMOTE_DGRAM_BUF_SIZE];
 static t_fifo remote_dgram_stream_fifo;
 
 /* MENU (testing) */
-static e_psu_gui_menu menu_page;
 static uint8_t bool_values[2] = { 1, 0 };
 static char* bool_labels[2] = { "YES", "NO" };
 static t_menu_extra_list menu_extra_3 = { 2U, 0U, bool_labels, bool_values };
-uint16_t cfg_ads1015;
-uint16_t conv_ads1015;
-uint16_t conv_ads1015_isr;
-uint16_t duty;
 uint16_t tmo_cnt = 0;
-uint16_t dac_val = 0;
 
 #define MAX(x, y) ((((x) > (y)) ? (x) : (y)))
 
 const PROGMEM t_menu_item menu_test_eeprom[] = {
-//        {"dac", (void*)&dac_val, MENU_TYPE_NUMERIC_16 },
-//        {"cfg", (void*)&cfg_ads1015, MENU_TYPE_NUMERIC_16 },
-//        {"conv", (void*)&conv_ads1015, MENU_TYPE_NUMERIC_16 },
-//        {"set", (void*)&tmo_cnt, MENU_TYPE_NUMERIC_16 },
-        //        {"P", (void*)&psu_channels[0].current_limit_pid.P_Factor, MENU_TYPE_NUMERIC_16 },
-        //        {"I", (void*)&psu_channels[0].current_limit_pid.I_Factor, MENU_TYPE_NUMERIC_16 },
-        //        {"D", (void*)&psu_channels[0].current_limit_pid.D_Factor, MENU_TYPE_NUMERIC_16 },
-        //        {"d.I", (void*)&psu_channels[0].current_limit_pid.sumError, MENU_TYPE_NUMERIC_32 },
-        {"Isr", (void*)&psu_channels[0].current_setpoint.value.raw, MENU_TYPE_NUMERIC_16 },
-        {"Iss", (void*)&psu_channels[0].current_setpoint.value.scaled, MENU_TYPE_NUMERIC_16 },
-        {"Vss", (void*)&psu_channels[0].voltage_setpoint.value.scaled, MENU_TYPE_NUMERIC_16 },
-        {"Vsr", (void*)&psu_channels[0].voltage_setpoint.value.raw, MENU_TYPE_NUMERIC_16 },
+    {"VOLTAGE ADC CAL", (void*)(uint8_t)PSU_MENU_VOLTAGE_CALIBRATION, MENU_TYPE_GOTO },
+    {"CURRENT ADC CAL", (void*)(uint8_t)PSU_MENU_CURRENT_CALIBRATION, MENU_TYPE_GOTO },
+    {"VOLTAGE DAC CAL", (void*)(uint8_t)PSU_MENU_VOLTAGE_DAC_CALIBRATION, MENU_TYPE_GOTO },
+    {"CURRENT DAC CAL", (void*)(uint8_t)PSU_MENU_CURRENT_DAC_CALIBRATION, MENU_TYPE_GOTO },
 
-        {"Irr", (void*)&psu_channels[0].current_readout.value.raw, MENU_TYPE_NUMERIC_16 },
-        {"Irs", (void*)&psu_channels[0].current_readout.value.scaled, MENU_TYPE_NUMERIC_16 },
-        {"Vrs", (void*)&psu_channels[0].voltage_readout.value.scaled, MENU_TYPE_NUMERIC_16 },
-        {"Vrr", (void*)&psu_channels[0].voltage_readout.value.raw, MENU_TYPE_NUMERIC_16 },
+    {"Isr", (void*)&psu_channels[0].current_setpoint.value.raw, MENU_TYPE_NUMERIC_16 },
+    {"Iss", (void*)&psu_channels[0].current_setpoint.value.scaled, MENU_TYPE_NUMERIC_16 },
+    {"Vss", (void*)&psu_channels[0].voltage_setpoint.value.scaled, MENU_TYPE_NUMERIC_16 },
+    {"Vsr", (void*)&psu_channels[0].voltage_setpoint.value.raw, MENU_TYPE_NUMERIC_16 },
 
-        {"Vdac+", (void*)&psu_channels[0].voltage_readout.scale.max, MENU_TYPE_NUMERIC_16 },
-        {"Vdac-", (void*)&psu_channels[0].voltage_readout.scale.min, MENU_TYPE_NUMERIC_16 },
-        {"Vsca+", (void*)&psu_channels[0].voltage_readout.scale.max_scaled, MENU_TYPE_NUMERIC_16 },
-        {"Vsca-", (void*)&psu_channels[0].voltage_readout.scale.min_scaled, MENU_TYPE_NUMERIC_16 },
-
-        {"Idac+", (void*)&psu_channels[0].current_readout.scale.max, MENU_TYPE_NUMERIC_16 },
-        {"Idac-", (void*)&psu_channels[0].current_readout.scale.min, MENU_TYPE_NUMERIC_16 },
-        {"Isca+", (void*)&psu_channels[0].current_readout.scale.max_scaled, MENU_TYPE_NUMERIC_16 },
-        {"Isca-", (void*)&psu_channels[0].current_readout.scale.min_scaled, MENU_TYPE_NUMERIC_16 },
-
-                                    {"duty", (void*)&duty, MENU_TYPE_NUMERIC_16 },
-
-                                    {"c.t", (void*)&application.cycle_time, MENU_TYPE_NUMERIC_32 },
-                                    {"c.t.m", (void*)&application.cycle_time_max, MENU_TYPE_NUMERIC_32 },
+//                                    {"c.t", (void*)&application.cycle_time, MENU_TYPE_NUMERIC_32 },
+//                                    {"c.t.m", (void*)&application.cycle_time_max, MENU_TYPE_NUMERIC_32 },
                                     {"BACK", (void*)(uint8_t)PSU_MENU_PSU, MENU_TYPE_GOTO }
                                     };
 
@@ -155,11 +129,14 @@ const PROGMEM t_menu_item menu_psu_ch_debug[] = {
         {"BACK", NULL, MENU_TYPE_GOTO }
 };
 
-#define MAX_MENU_ENTRIES  ( \
-        MAX(MAX(sizeof(menu_test_eeprom), sizeof(menu_test_debug)), sizeof(menu_psu_ch_debug)) \
-        )
+//#define MAX_MENU_ENTRIES  ( \
+//        MAX(MAX(sizeof(menu_test_eeprom), sizeof(menu_test_debug)), sizeof(menu_psu_ch_debug)) \
+//        )
 
-static t_menu_item g_megnu_page_entries[MAX_MENU_ENTRIES / sizeof(t_menu_item)];
+//static t_menu_item g_megnu_page_entries[MAX_MENU_ENTRIES / sizeof(t_menu_item)];
+
+/** STATIC PROTOTYPES **/
+static void app_gui_load_page(uint8_t page);
 
 void uart_received(uint8_t byte)
 {
@@ -222,8 +199,6 @@ static void psu_advance_selection(void)
     psu_select_channel(ch, sp);
 
 }
-
-
 
 static void psu_init(void)
 {
@@ -310,12 +285,6 @@ static void init_io(void)
 
     system_interrupt_enable();
 
-#ifdef __AVR_ARCH__
-    /*  */
-    memcpy_P(g_megnu_page_entries, menu_test_eeprom, sizeof(menu_test_eeprom));
-#else
-    memcpy(g_megnu_page_entries, menu_test_eeprom, sizeof(menu_test_eeprom));
-#endif
     ads_init();
     mcp_dac_init(MCP_DAC_ADDRESS_0);
     mcp_dac_init(MCP_DAC_ADDRESS_1);
@@ -518,6 +487,217 @@ static char get_digit(uint16_t *val)
     return '0' + *val % 10U;
 }
 
+static void app_menu_calibration(uint16_t *low, uint16_t *upper, uint16_t *raw, uint16_t *scaled)
+{
+    t_menu_item temp;
+    temp.type = MENU_TYPE_NUMERIC_16;
+    menu_clear();
+    temp.label = "LOWER";
+    temp.extra = (void*)low;
+    menu_item_add(&temp);
+    temp.label = "UPPER";
+    temp.extra = (void*)upper;
+    menu_item_add(&temp);
+    temp.label = "RAW";
+    temp.extra = (void*)raw;
+    temp.type = MENU_TYPE_NUMERIC_16_EDIT;
+    menu_item_add(&temp);
+    temp.label = "SCALED";
+    temp.extra = (void*)scaled;
+    temp.type = MENU_TYPE_NUMERIC_16;
+    menu_item_add(&temp);
+}
+
+static void app_set_page(const t_menu_item *page, uint8_t count)
+{
+    uint8_t i = 0;
+
+    for (i = 0; i < count; i++)
+    {
+        menu_item_add(page + i);
+    }
+}
+
+static void app_set_page_progmem(const PROGMEM t_menu_item menu[], uint8_t count)
+{
+    uint8_t i = 0;
+    t_menu_item item;
+
+    for (i = 0; i < count; i++)
+    {
+        memcpy_P(&item, menu + i, sizeof(item));
+        menu_item_add(&item);
+    }
+}
+
+static void app_gui_init(void)
+{
+    menu_init(2U);  /* lines */
+    menu_set_page(PSU_MENU_MAIN);
+    menu_set_diff(1);
+    app_gui_load_page(menu_get_page());
+}
+
+static void app_gui_load_page(uint8_t page)
+{
+    menu_clear();
+    t_menu_item back = {"BACK", (void*)(uint8_t)PSU_MENU_PSU, MENU_TYPE_GOTO };
+
+    encoder_menu_mode = true;
+    psu_channels[0].output_bypass = false;
+
+    switch(page)
+    {
+    case PSU_MENU_MAIN:
+        app_set_page_progmem(menu_test_eeprom, sizeof(menu_test_eeprom)/sizeof(menu_test_eeprom[0]));
+        break;
+    case PSU_MENU_PSU:
+        encoder_menu_mode = false;
+        menu_clear();
+        break;
+    case PSU_MENU_VOLTAGE_CALIBRATION:
+        app_menu_calibration(&psu_channels[0].voltage_readout.scale.min,
+                             &psu_channels[0].voltage_readout.scale.max,
+                             &psu_channels[0].voltage_readout.value.raw,
+                             &psu_channels[0].voltage_readout.value.scaled
+                             );
+        /* add a back button */
+        back.extra = (void*)(uint8_t)PSU_MENU_MAIN;
+        menu_item_add(&back);
+        break;
+    case PSU_MENU_CURRENT_CALIBRATION:
+        app_menu_calibration(&psu_channels[0].current_readout.scale.min,
+                             &psu_channels[0].current_readout.scale.max,
+                             &psu_channels[0].current_readout.value.raw,
+                             &psu_channels[0].current_readout.value.scaled
+                             );
+        /* add a back button */
+        back.extra = (void*)(uint8_t)PSU_MENU_MAIN;
+        menu_item_add(&back);
+        break;
+    case PSU_MENU_VOLTAGE_DAC_CALIBRATION:
+        psu_channels[0].output_bypass = true;
+        app_menu_calibration(&psu_channels[0].voltage_setpoint.scale.min_scaled,
+                             &psu_channels[0].voltage_setpoint.scale.max_scaled,
+                             &psu_channels[0].value_bypass,
+                             &psu_channels[0].voltage_setpoint.value.scaled
+                             );
+        /* add a back button */
+        back.extra = (void*)(uint8_t)PSU_MENU_MAIN;
+        menu_item_add(&back);
+        break;
+    case PSU_MENU_CURRENT_DAC_CALIBRATION:
+        psu_channels[0].output_bypass = true;
+        app_menu_calibration(&psu_channels[0].current_setpoint.scale.min_scaled,
+                             &psu_channels[0].current_setpoint.scale.max_scaled,
+                             &psu_channels[0].current_setpoint.value.raw,
+                             &psu_channels[0].current_setpoint.value.scaled
+                             );
+        /* add a back button */
+        back.extra = (void*)(uint8_t)PSU_MENU_MAIN;
+        menu_item_add(&back);
+        break;
+    default:
+        break;
+    }
+
+    /* set the new page value for the application layer */
+    menu_set_page(page);
+}
+
+static void save_calibration(e_settings_available setting, uint16_t *new, uint16_t *old)
+{
+    setting_set_2(setting, *new);
+    settings_save_to_storage(setting);
+    *old = *new;
+}
+
+void menu_event_callback(e_menu_output_event event, uint8_t index, uint8_t page, uint8_t info)
+{
+    switch(event)
+    {
+    case MENU_EVENT_OUTPUT_GOTO:
+        /* select page */
+        app_gui_load_page(info);
+        break;
+    case MENU_EVENT_CLICK_LONG:
+        switch(page)
+        {
+        case PSU_MENU_MAIN:
+            app_gui_load_page(PSU_MENU_PSU);
+            break;
+        default:
+            break;
+        }
+
+        break;
+    case MENU_EVENT_CLICK:
+    case MENU_EVENT_OUTPUT_DESELECT:
+
+        switch(page)
+        {
+        case PSU_MENU_MAIN:
+            application.cycle_time_max = 0;
+            break;
+        case PSU_MENU_VOLTAGE_CALIBRATION:
+            if (index == 0)
+            {
+                /* lower voltage calibration data save */
+                save_calibration(SETTING_CAL_VOLTAGE_LOWER, &psu_channels[0].voltage_readout.value.raw, &psu_channels[0].voltage_readout.scale.min);
+            }
+            else if (index == 1)
+            {
+                /* upper voltage calibration data save */
+                save_calibration(SETTING_CAL_VOLTAGE_UPPER, &psu_channels[0].voltage_readout.value.raw, &psu_channels[0].voltage_readout.scale.max);
+            }
+            break;
+        case PSU_MENU_CURRENT_CALIBRATION:
+            if (index == 0)
+            {
+                /* lower voltage calibration data save */
+                save_calibration(SETTING_CAL_CURRENT_LOWER, &psu_channels[0].current_readout.value.raw, &psu_channels[0].current_readout.scale.min);
+            }
+            else if (index == 1)
+            {
+                /* upper voltage calibration data save */
+                save_calibration(SETTING_CAL_CURRENT_UPPER, &psu_channels[0].current_readout.value.raw, &psu_channels[0].current_readout.scale.max);
+            }
+            break;
+        case PSU_MENU_VOLTAGE_DAC_CALIBRATION:
+            /* please note the values have to be inverted: it will be next implemented a generic inverted flag to a setpoint - measurement block */
+            if (index == 0)
+            {
+                /* lower voltage calibration data save */
+                save_calibration(SETTING_CAL_DAC_VOLTAGE_LOWER, &psu_channels[0].value_bypass, &psu_channels[0].voltage_setpoint.scale.max_scaled);
+            }
+            else if (index == 1)
+            {
+                /* upper voltage calibration data save */
+                save_calibration(SETTING_CAL_DAC_VOLTAGE_UPPER, &psu_channels[0].value_bypass, &psu_channels[0].voltage_setpoint.scale.min_scaled);
+            }
+            break;
+        case PSU_MENU_CURRENT_DAC_CALIBRATION:
+            if (index == 0)
+            {
+                /* lower voltage calibration data save */
+                save_calibration(SETTING_CAL_DAC_CURRENT_LOWER, &psu_channels[0].current_setpoint.value.scaled, &psu_channels[0].current_setpoint.scale.min_scaled);
+            }
+            else if (index == 1)
+            {
+                /* upper voltage calibration data save */
+                save_calibration(SETTING_CAL_DAC_CURRENT_UPPER, &psu_channels[0].current_setpoint.value.scaled, &psu_channels[0].current_setpoint.scale.max_scaled);
+            }
+            break;
+        default:
+            break;
+        }
+
+        break;
+    default:
+        break;
+    }
+}
+
 static void gui_print_measurement(e_psu_setpoint type, uint16_t value, bool selected)
 {
     /* Operation order is funny because this is more optimized :-) */
@@ -585,120 +765,6 @@ static void gui_main_screen(void)
         display_write_char(psu_channels[PSU_CHANNEL_1].state == PSU_STATE_OPERATIONAL ? '1' : '0');
 }
 
-static e_psu_gui_menu psu_menu_handler(e_psu_gui_menu page)
-{
-
-    e_key_event evt;		/* event from the input system */
-    e_menu_input_event menu_evt;	    /* event to be fed to the menu system */
-    e_menu_output_event menu_evt_out;    /* event generated by the menu system */
-    e_psu_gui_menu new_page;	/* newly selected page if any */
-    t_menu_item  *menu_item = NULL;
-    uint8_t       menu_count = 0U;
-    static t_menu_state menu_state = {0, 1, MENU_NOT_SELECTED, 1U};
-
-    new_page = page;
-    evt = keypad_clicked(BUTTON_SELECT);
-
-    /* Input event to Menu event mapping */
-    /* The Left and Right events are handled in the interrupt */
-    if (evt == KEY_CLICK) menu_evt = MENU_EVENT_CLICK;
-    else if (evt == KEY_HOLD) menu_evt = MENU_EVENT_CLICK_LONG;
-    else menu_evt = MENU_EVENT_NONE;
-
-    menu_evt_out = menu_event(menu_evt);
-
-    switch(page)
-    {
-    case PSU_MENU_PSU:
-        if (evt == KEY_CLICK)
-        {
-            psu_advance_selection();
-        }
-        else if (evt == KEY_HOLD)
-        {
-        	new_page = PSU_MENU_MAIN;
-        }
-        else if (menu_evt_out == MENU_EVENT_OUTPUT_GOTO)
-        {
-            new_page = PSU_MENU_MAIN;
-        }
-
-        gui_main_screen();
-
-        break;
-    case PSU_MENU_MAIN:
-
-        encoder_menu_mode = true;
-
-        if (evt == KEY_CLICK)
-        {
-            application.cycle_time_max = 0;
-        }
-        else if (evt == KEY_HOLD)
-        {
-            new_page = PSU_MENU_PSU;
-        }
-
-        if (menu_evt_out == MENU_EVENT_OUTPUT_EXTRA_EDIT)
-        {
-//            pid_Init(psu_channels[0].current_limit_pid.P_Factor, psu_channels[0].current_limit_pid.I_Factor, psu_channels[0].current_limit_pid.D_Factor, &psu_channels[0].current_limit_pid);
-//            pid_Reset_Integrator(&psu_channels[0].current_limit_pid);
-        }
-        else if (menu_evt_out == MENU_EVENT_OUTPUT_GOTO)
-        {
-            new_page = PSU_MENU_PSU;
-        }
-
-        break;
-    case PSU_MENU_STARTUP:
-        /* initialization phase */
-        new_page = PSU_MENU_MAIN;
-        break;
-    default:
-        /* error or PSU_MENU_STARTUP */
-        break;
-    }
-
-    if (new_page != page)
-    {
-    	/* Page changed, do initialization if necessary */
-        switch(new_page)
-        {
-        case PSU_MENU_PSU:
-            encoder_menu_mode = false;
-            break;
-        case PSU_MENU_MAIN:
-            encoder_menu_mode = true;
-            /* select the menu */
-            menu_item  = &g_megnu_page_entries[0];
-            menu_count = (sizeof(g_megnu_page_entries) / sizeof(t_menu_item));
-            break;
-        default:
-            break;
-        }
-
-        menu_set(&menu_state, menu_item, menu_count, (uint8_t)page);
-    }
-    else
-    {
-        /* no page switch */
-    }
-
-    /* periodic function for the menu handler */
-    menu_display();
-
-    return new_page;
-}
-
-/*
-psu_channels[0].voltage_setpoint.value.raw = 19856;
-observed an offset error of about 50mV
-note that the prototype breadboard does not have a separatly filtered and regulated 5V supply
-psu_channels[0].current_setpoint.value.raw = 1500;// = 2047; // observed an offset error of about 40mV
-*/
-// to-do / to analyze: 1) absolute offset calibration
-//                     2) non linear behaviour correction (do measurements)
-
 void psu_app_init(void)
 {
     /* System init */
@@ -706,6 +772,12 @@ void psu_app_init(void)
 
     /* Initialize I/Os */
     init_io();
+
+    /* Settings (parameters) */
+    settings_init();
+
+    /* Read the data out the persistent storage */
+    settings_read_from_storage();
 
     /* Init ranges and precisions */
     psu_init();
@@ -716,25 +788,6 @@ void psu_app_init(void)
     /* Default state for the display */
     display_clear();
     display_enable_cursor(false);
-
-    /* Settings (parameters) */
-    settings_init();
-
-    /* Read the data out the persistent storage */
-    settings_read_from_storage();
-
-    if (setting_has_property(SETTING_VERSION, SETTING_STATE_VALID) == true)
-    {
-        // testing
-        setting_set_1(SETTING_VERSION, setting_get_1(SETTING_VERSION, 0U) + 1);
-        settings_save_to_storage(SETTING_NUM_SETTINGS);
-    }
-    else
-    {
-        // no valid storage : do not save yet!
-        setting_set_1(SETTING_VERSION, 0xFF);
-        settings_save_to_storage(SETTING_NUM_SETTINGS);
-    }
 
     /* ...splash screen (busy wait, changed later) */
     display_write_string("IlLorenz");
@@ -749,7 +802,7 @@ void psu_app_init(void)
     display_clear();
 
     /* start with the following menu page */
-    menu_page = PSU_MENU_STARTUP;
+    app_gui_init();
 //
 //#ifdef __AVR_ARCH__
 //    /* 10 kHz PID routine handler */
@@ -848,8 +901,39 @@ void psu_app(void)
     /* Keypad */
     keypad_periodic(application.flag_50ms.flag);
 
+    e_key_event evt = keypad_clicked(BUTTON_SELECT);
+    e_menu_input_event menu_evt = MENU_EVENT_NONE;
+
+    /* MENU */
+
+    /* Input event to Menu event mapping */
+    /* The Left and Right events are handled in the interrupt */
+    if (evt == KEY_CLICK) menu_evt = MENU_EVENT_CLICK;
+    else if (evt == KEY_HOLD) menu_evt = MENU_EVENT_CLICK_LONG;
+
+    (void)menu_event(menu_evt);
+
+    /* periodic function for the menu handler */
+    menu_display();
+
     /* GUI */
-    menu_page = psu_menu_handler(menu_page);
+    switch(menu_get_page())
+    {
+    case PSU_MENU_PSU:
+        gui_main_screen();
+        if (evt == KEY_CLICK)
+        {
+            psu_advance_selection();
+        }
+        else if (evt == KEY_HOLD)
+        {
+            app_gui_load_page(PSU_MENU_MAIN);
+        }
+        break;
+    default:
+        /* nothing to handle here */
+        break;
+    }
 
     /* Output processing */
     psu_output_processing();
@@ -857,8 +941,16 @@ void psu_app(void)
     /* Display handler */
     display_periodic();
 
-    mcp_dac_write(MCP_DAC_ADDRESS_0, psu_channels[0].voltage_setpoint.value.scaled);
-    mcp_dac_write(MCP_DAC_ADDRESS_1, psu_channels[0].current_setpoint.value.scaled);
+    if (psu_channels[0].output_bypass == false)
+    {
+        mcp_dac_write(MCP_DAC_ADDRESS_0, psu_channels[0].voltage_setpoint.value.scaled);
+        mcp_dac_write(MCP_DAC_ADDRESS_1, psu_channels[0].current_setpoint.value.scaled);
+    }
+    else
+    {
+        /* outputs are bypassed */
+        mcp_dac_write(MCP_DAC_ADDRESS_0, psu_channels[0].value_bypass);
+    }
 
     /* Send out the oldest datagram from the FIFO */
     //datagram_buffer_to_remote();

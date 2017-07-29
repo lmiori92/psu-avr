@@ -30,6 +30,8 @@
 #include "stddef.h"
 #include "stdbool.h"
 
+/** Timeout counter for diagnostics */
+uint16_t error_counter = 0;
 /** Data (message) buffer [bytes] */
 static uint8_t *i2c_xfer_buffer;
 /** Size to be transfered (rx or tx) [bytes] */
@@ -187,6 +189,8 @@ uint8_t i2c_transfer_successful(void)
 {
     /* Wait until TWI is ready for next transmission */
     i2c_wait_or_timeout();
+
+    if (i2c_successful_operation == false)             error_counter++;
 
     return i2c_successful_operation;
 }

@@ -86,6 +86,8 @@
 #define TWI_TIMEOUT                0x01  /**< Bus error due to a timeout */
 #define TWI_BUS_ERROR              0x00  /**< Bus error due to an illegal START or STOP condition */
 
+extern uint16_t error_counter;
+
 void    i2c_init(void);
 uint8_t i2c_busy(void);
 uint8_t i2c_get_state_info(void);

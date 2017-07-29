@@ -25,26 +25,15 @@ void settings_init(void)
     (void)memset(&setting_list, 0U, sizeof(setting_list));
 
     setting_list[SETTING_VERSION].type = SETTING_TYPE_VAL1;
-    /*
-    setting_list[SETTING_CAL_CURRENT_ZERO].type = SETTING_TYPE_VAL2;
-    setting_list[SETTING_CAL_VOLTAGE_ZERO].type = SETTING_TYPE_VAL2;
-    setting_list[SETTING_CAL_CURRENT_TOP].type = SETTING_TYPE_VAL2;
-    setting_list[SETTING_CAL_VOLTAGE_TOP].type = SETTING_TYPE_VAL2;
-    setting_list[SETTING_CAL_CURRENT_ZERO_SCALE].type = SETTING_TYPE_VAL2;
-    setting_list[SETTING_CAL_VOLTAGE_ZERO_SCALE].type = SETTING_TYPE_VAL2;
-    setting_list[SETTING_CAL_CURRENT_TOP_SCALE].type = SETTING_TYPE_VAL2;
-    setting_list[SETTING_CAL_VOLTAGE_TOP_SCALE].type = SETTING_TYPE_VAL2;
-
-    setting_set_1(SETTING_VERSION, 1U);
-    setting_set_2(SETTING_CAL_CURRENT_ZERO, 0U);
-    setting_set_2(SETTING_CAL_VOLTAGE_ZERO, 0U);
-    setting_set_2(SETTING_CAL_CURRENT_TOP, 0U);
-    setting_set_2(SETTING_CAL_VOLTAGE_TOP, 0U);
-    setting_set_2(SETTING_CAL_CURRENT_ZERO_SCALE, 0U);
-    setting_set_2(SETTING_CAL_VOLTAGE_ZERO_SCALE, 0U);
-    setting_set_2(SETTING_CAL_CURRENT_TOP_SCALE, 0U);
-    setting_set_2(SETTING_CAL_VOLTAGE_TOP_SCALE, 0U);
-    */
+    setting_list[SETTING_CAL_VOLTAGE_LOWER].type = SETTING_TYPE_VAL2;
+    setting_list[SETTING_CAL_VOLTAGE_UPPER].type = SETTING_TYPE_VAL2;
+    setting_list[SETTING_CAL_CURRENT_LOWER].type = SETTING_TYPE_VAL2;
+    setting_list[SETTING_CAL_CURRENT_UPPER].type = SETTING_TYPE_VAL2;
+    setting_list[SETTING_CAL_DAC_VOLTAGE_LOWER].type = SETTING_TYPE_VAL2;
+    setting_list[SETTING_CAL_DAC_VOLTAGE_UPPER].type = SETTING_TYPE_VAL2;
+    setting_list[SETTING_CAL_DAC_CURRENT_LOWER].type = SETTING_TYPE_VAL2;
+    setting_list[SETTING_CAL_DAC_CURRENT_UPPER].type = SETTING_TYPE_VAL2;
+    setting_list[SETTING_WORKING_MINUTES].type = SETTING_TYPE_VAL2;
 
     /* initialize the persistent storage layer */
     persistent_init(&storage_size);
@@ -124,7 +113,7 @@ static void setting_save_to_storage(e_settings_available setting)
     }
 
 }
-#include "stdio.h"
+
 void settings_read_from_storage(void)
 {
 
@@ -184,11 +173,12 @@ void settings_save_to_storage(e_settings_available setting)
     }
 }
 
-static bool setting_valid_type(e_settings_available setting, e_setting_type type)
+static bool setting_valid_type_and_value(e_settings_available setting, e_setting_type type)
 {
     if ((uint8_t)setting < (uint8_t)SETTING_NUM_SETTINGS)
     {
-        return (setting_list[setting].type == type) ? true : false;
+        bool is_valid = setting_has_property(setting, SETTING_STATE_VALID);
+        return ((setting_list[setting].type == type) && (is_valid == true)) ? true : false;
     }
     else
     {
@@ -199,7 +189,7 @@ static bool setting_valid_type(e_settings_available setting, e_setting_type type
 uint8_t setting_get_1(e_settings_available setting, uint8_t default_val)
 {
     bool valid;
-    valid = setting_valid_type(setting, SETTING_TYPE_VAL1);
+    valid = setting_valid_type_and_value(setting, SETTING_TYPE_VAL1);
 
     if (valid == true) return setting_list[setting].u_setting_value.byte1;
     else return default_val;
@@ -207,7 +197,7 @@ uint8_t setting_get_1(e_settings_available setting, uint8_t default_val)
 uint16_t setting_get_2(e_settings_available setting, uint16_t default_val)
 {
     bool valid;
-    valid = setting_valid_type(setting, SETTING_TYPE_VAL2);
+    valid = setting_valid_type_and_value(setting, SETTING_TYPE_VAL2);
 
     if (valid == true) return setting_list[setting].u_setting_value.byte2;
     else return default_val;
@@ -215,7 +205,7 @@ uint16_t setting_get_2(e_settings_available setting, uint16_t default_val)
 uint32_t setting_get_4(e_settings_available setting, uint32_t default_val)
 {
     bool valid;
-    valid = setting_valid_type(setting, SETTING_TYPE_VAL4);
+    valid = setting_valid_type_and_value(setting, SETTING_TYPE_VAL4);
 
     if (valid == true) return setting_list[setting].u_setting_value.byte4;
     else return default_val;
@@ -223,7 +213,7 @@ uint32_t setting_get_4(e_settings_available setting, uint32_t default_val)
 bool setting_get_bool(e_settings_available setting, bool default_val)
 {
     bool valid;
-    valid = setting_valid_type(setting, SETTING_TYPE_BOOL);
+    valid = setting_valid_type_and_value(setting, SETTING_TYPE_BOOL);
 
     if (valid == true) return setting_list[setting].u_setting_value.byteB;
     else return default_val;
@@ -232,7 +222,7 @@ bool setting_get_bool(e_settings_available setting, bool default_val)
 void setting_set_1(e_settings_available setting, uint8_t value)
 {
     bool valid;
-    valid = setting_valid_type(setting, SETTING_TYPE_VAL1);
+    valid = setting_valid_type_and_value(setting, SETTING_TYPE_VAL1);
 
     if (valid == true)
     {
@@ -243,7 +233,7 @@ void setting_set_1(e_settings_available setting, uint8_t value)
 void setting_set_2(e_settings_available setting, uint16_t value)
 {
     bool valid;
-    valid = setting_valid_type(setting, SETTING_TYPE_VAL2);
+    valid = setting_valid_type_and_value(setting, SETTING_TYPE_VAL2);
 
     if (valid == true)
     {
@@ -254,7 +244,7 @@ void setting_set_2(e_settings_available setting, uint16_t value)
 void setting_set_4(e_settings_available setting, uint32_t value)
 {
     bool valid;
-    valid = setting_valid_type(setting, SETTING_TYPE_VAL4);
+    valid = setting_valid_type_and_value(setting, SETTING_TYPE_VAL4);
 
     if (valid == true)
     {
@@ -265,7 +255,7 @@ void setting_set_4(e_settings_available setting, uint32_t value)
 void setting_set_bool(e_settings_available setting, bool value)
 {
     bool valid;
-    valid = setting_valid_type(setting, SETTING_TYPE_BOOL);
+    valid = setting_valid_type_and_value(setting, SETTING_TYPE_BOOL);
 
     if (valid == true)
     {

@@ -7,6 +7,9 @@
 
 #include "psu.h"
 #include "remote.h"
+#include "settings.h"
+#include "driver/adc/ads1015.h"
+#include "driver/dac/mcp4725.h"
 
 #include <stddef.h>
 
@@ -22,11 +25,31 @@ void psu_init_channel(t_psu_channel *channel, e_psu_channel psu_ch, uint8_t iden
     /* Set nodeID */
     channel->node_id = identifier;
 
-    psu_set_measurement_scale(&channel->voltage_readout, 0, 1777, 0, 20000);
-    psu_set_measurement_scale(&channel->current_readout, 0, adc_get_resolution(), 0, 4300);
+    psu_set_measurement_scale(&channel->voltage_readout,
+                              setting_get_2(SETTING_CAL_VOLTAGE_LOWER, 0),
+                              setting_get_2(SETTING_CAL_VOLTAGE_UPPER, 1777),
+                              0,
+                              20000);
 
-    psu_set_setpoint_scale(&channel->voltage_setpoint, 0, 25000, 487, mcp_dac_get_resolution());
-    psu_set_setpoint_scale(&channel->current_setpoint, 0, 2048, 0, mcp_dac_get_resolution());
+    psu_set_measurement_scale(&channel->current_readout,
+                              setting_get_2(SETTING_CAL_CURRENT_LOWER, 0),
+                              setting_get_2(SETTING_CAL_CURRENT_UPPER, 1023),
+                              0,
+                              2000);
+
+    psu_set_setpoint_scale(&channel->voltage_setpoint,
+                           0,
+                           25000,
+                           setting_get_2(SETTING_CAL_DAC_VOLTAGE_LOWER, 487),
+                           setting_get_2(SETTING_CAL_DAC_VOLTAGE_UPPER, mcp_dac_get_resolution())
+                           );
+
+    psu_set_setpoint_scale(&channel->current_setpoint,
+                           0,
+                           2048,
+                           setting_get_2(SETTING_CAL_DAC_CURRENT_LOWER, 0),
+                           setting_get_2(SETTING_CAL_DAC_CURRENT_UPPER, mcp_dac_get_resolution())
+                           );
 
     /* Filter properties */
     channel->voltage_readout.filter.alpha = 10;
